@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monarch — Retail Operating System</title>
+<meta name="description" content="Monarch Retail OS — Enterprise Point of Sale & Mart Management Software.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="splash">
+  <div class="splash-in">
+    <div class="splash-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6l8 8 8-8v13"/></svg>
+    </div>
+    <div class="splash-name">monarch<span style="color:#d5fd79">.</span></div>
+    <div class="splash-tag">RETAIL OPERATING SYSTEM</div>
+    <div class="splash-bar"><i></i></div>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand" onclick="go('overview')" style="cursor:pointer">
+      <div class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6l8 8 8-8v13"/></svg>
+      </div>
+      <div class="brand-t"><b>monarch<span>.</span></b><small>RETAIL OS</small></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="plan">
+        <b>Enterprise plan</b>
+        <small id="sync-pill">Local + Cloud Ready · 4 stores</small>
+        <div class="meter"><i></i></div>
+        <small>All 19 enterprise modules active</small>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button class="icon-btn mob" onclick="document.body.classList.toggle('nav-open')" aria-label="Menu" data-ic="menu"></button>
+      <button class="icon-btn collapse-btn" onclick="toggleCollapse()" aria-label="Collapse sidebar" data-ic="panel"></button>
+      <div class="crumb"><span class="cr-ws">Workspace</span><span class="cr-ws" data-ic="chevR" data-s="14"></span><b id="crumb">Overview</b></div>
+      <div class="top-r">
+        <button class="search-t" onclick="openCmd()"><span data-ic="search" data-s="16"></span><span class="st">Search products, customers, pages…</span><kbd>⌘K</kbd></button>
+        <select class="branch-sel" id="branch-sel" onchange="setBranch(this.value)"></select>
+        <button class="icon-btn theme-btn" onclick="toggleTheme()" aria-label="Toggle theme" id="theme-btn"></button>
+        <button class="icon-btn" onclick="openNotifs(event)" aria-label="Notifications" id="bell"></button>
+        <button class="me" id="me-btn" onclick="openUserMenu(event)"><div class="av" id="me-av">AM</div><div class="me-t"><b id="me-name">Alex Morgan</b><small id="me-role">Owner · All</small></div></button>
+      </div>
+    </header>
+    <main id="view"></main>
+  </div>
+</div>
+
+<div id="auth-root"></div>
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="pop-root"></div>
+<div id="toasts"></div>
+<div id="print-area"></div>
+<canvas id="confetti"></canvas>
+
+<script src="/js/data.js"></script>
+<script src="/js/ui.js"></script>
+<script src="/js/pos.js"></script>
+<script src="/js/modules.js"></script>
+<script src="/js/reports-ai.js"></script>
+</body>
+</html>

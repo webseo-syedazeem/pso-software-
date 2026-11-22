@@ -1,0 +1,13 @@
+{
+  "name": "monarch-retail-pos",
+  "version": "4.2.0",
+  "description": "Monarch Retail OS — Enterprise Point of Sale & Mart Management Software",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.10.0"
+  }
+}
