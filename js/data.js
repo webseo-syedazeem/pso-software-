@@ -78,83 +78,209 @@ const ic=(n,s=18,sw=1.8)=>`<svg class="i" width="${s}" height="${s}" viewBox="0 
 /* ================= UTILS ================= */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const CUR={GBP:'£',USD:'$',EUR:'€',PKR:'Rs ',AED:'AED '};
-const FX={GBP:1,USD:1.27,EUR:1.17,PKR:354,AED:4.66};
-const fx=n=>n*(FX[S.settings.currency]||1);
+const CUR={PKR:'Rs ',USD:'$',GBP:'£',EUR:'€',AED:'AED '};
+const FX={PKR:1,USD:1,GBP:1,EUR:1,AED:1};
+const fx=n=>+n||0;
 function money(n,dp=2){n=fx(+n||0);const neg=n<0;return (neg?'-':'')+CUR[S.settings.currency]+Math.abs(n).toLocaleString('en-GB',{minimumFractionDigits:dp,maximumFractionDigits:dp})}
 function moneyK(n){n=fx(+n||0);const c=CUR[S.settings.currency];if(Math.abs(n)>=1e6)return c+(n/1e6).toFixed(2)+'M';if(Math.abs(n)>=1e4)return c+(n/1e3).toFixed(1)+'K';return c+Math.round(n).toLocaleString('en-GB')}
-const num=n=>Math.round(+n).toLocaleString('en-GB');
-const r2=n=>Math.round((n+Number.EPSILON)*100)/100;
-const sum=(a,f=x=>x)=>a.reduce((s,x)=>s+f(x),0);
+const num=n=>Math.round(+n||0).toLocaleString('en-GB');
+const r2=n=>Math.round(((+n||0)+Number.EPSILON)*100)/100;
+const sum=(a,f=x=>x)=>(a||[]).reduce((s,x)=>s+(+f(x)||0),0);
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 let R=mulberry(20261122);const ri=(a,b)=>Math.floor(R()*(b-a+1))+a;const pick=a=>a[Math.floor(R()*a.length)];
 const NOW=new Date();const DAY=864e5;
-function fmtTime(d){d=new Date(d);const t=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});const dd=Math.floor((new Date(NOW).setHours(0,0,0,0)-new Date(d).setHours(0,0,0,0))/DAY);if(dd<=0)return 'Today, '+t;if(dd===1)return 'Yesterday, '+t;return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+', '+t}
-function ago(d){const s=(Date.now()-new Date(d))/1000;if(s<45)return 'just now';if(s<3600)return Math.round(s/60)+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago'}
-const fmtDate=d=>new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-const initials=n=>n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+function fmtTime(d){if(!d)return '—';d=new Date(d);const t=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});const dd=Math.floor((new Date().setHours(0,0,0,0)-new Date(d).setHours(0,0,0,0))/DAY);if(dd<=0)return 'Today, '+t;if(dd===1)return 'Yesterday, '+t;return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})+', '+t}
+function ago(d){if(!d)return '—';const s=(Date.now()-new Date(d))/1000;if(s<45)return 'just now';if(s<3600)return Math.round(s/60)+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago'}
+const fmtDate=d=>d?new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
+const initials=n=>String(n||'U').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
 const AVC=['linear-gradient(135deg,#8b7ffa,#5b4cf0)','linear-gradient(135deg,#14b8a6,#0e9fe0)','linear-gradient(135deg,#f59e0b,#e5479a)','linear-gradient(135deg,#0fb37c,#14b8a6)','linear-gradient(135deg,#e9445a,#f59e0b)','linear-gradient(135deg,#0e9fe0,#5b4cf0)'];
-const avc=n=>AVC[[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%AVC.length];
+const avc=n=>AVC[[...String(n||'U')].reduce((a,c)=>a+c.charCodeAt(0),0)%AVC.length];
 const avatar=(n,s=36)=>`<div class="av" style="width:${s}px;height:${s}px;background:${avc(n)};font-size:${s*.33}px">${initials(n)}</div>`;
 
-/* ================= DATA ================= */
-const CATS={'Fresh Produce':{tone:'#e6f5dc',c:'#0fb37c',px:'FRS'},'Dairy & Chilled':{tone:'#e5eefb',c:'#0e9fe0',px:'DCH'},'Bakery':{tone:'#f8ead8',c:'#f29a0b',px:'BAK'},'Beverages':{tone:'#e0f3f6',c:'#14b8a6',px:'BEV'},'Grocery':{tone:'#f1efdb',c:'#8b7ffa',px:'GRC'},'Snacks':{tone:'#f3e6df',c:'#e5479a',px:'SNK'},'Household':{tone:'#ece9fb',c:'#5b4cf0',px:'HSE'},'Personal Care':{tone:'#fbe6ee',c:'#e9445a',px:'PRC'}};
-const RAW=[
-['Organic Almond Milk 1L','Dairy & Chilled',2.85,1.55,128,30,200,'🥛',12,186],['Hass Avocados (2 pack)','Fresh Produce',2.50,1.20,94,40,180,'🥑',5,240],['Artisan Sourdough Loaf','Bakery',3.90,1.60,23,25,80,'🍞',2,198],['Blueberries 250g','Fresh Produce',3.40,1.90,67,30,150,'🫐',6,174],
-['70% Dark Chocolate','Snacks',2.75,1.10,212,50,300,'🍫',240,156],['Sparkling Water 6×500ml','Beverages',3.95,1.65,340,80,500,'💧',365,412],['Extra Virgin Olive Oil','Grocery',8.90,5.10,12,20,90,'🫒',420,64],['Single-Origin Coffee 1kg','Beverages',18.50,9.40,45,20,120,'☕',180,88],
-['Free-Range Eggs (12)','Dairy & Chilled',3.60,1.95,87,40,160,'🥚',14,265],['Strawberries 400g','Fresh Produce',3.25,1.70,55,30,140,'🍓',3,210],['Wildflower Honey 340g','Grocery',6.95,3.80,18,15,70,'🍯',600,41],['Greek Yogurt 500g','Dairy & Chilled',2.40,1.05,110,40,180,'🥣',9,190],
-['Butter Croissants (4)','Bakery',2.95,1.10,36,20,90,'🥐',1,230],['Cold-Pressed Orange Juice','Beverages',3.80,1.90,72,30,140,'🍊',6,160],['Basmati Rice 2kg','Grocery',5.50,2.95,96,30,200,'🍚',500,98],['Sea Salt Crisps','Snacks',1.65,.62,180,60,320,'🥔',150,320],
-['Mature Cheddar 400g','Dairy & Chilled',4.75,2.60,0,20,90,'🧀',45,140],['Bananas (bunch)','Fresh Produce',1.15,.48,150,60,260,'🍌',4,380],['Eco Laundry Liquid','Household',7.50,3.90,42,15,80,'🧴',720,38],['Bamboo Kitchen Roll','Household',4.25,2.10,64,20,120,'🧻',900,22],
-['Natural Shampoo 400ml','Personal Care',5.95,2.40,33,15,80,'🧼',700,14],['Mint Toothpaste','Personal Care',2.20,.85,7,25,120,'🪥',800,74],['Penne Pasta 500g','Grocery',1.35,.52,260,60,400,'🍝',600,290],['Sparkling Lemonade 1.5L','Beverages',1.95,.80,118,40,220,'🍋',300,205]];
+/* ================= CATEGORIES & LIVE STATE (ZERO DUMMY DATA) ================= */
+const CATS={
+  'Fresh Produce':{tone:'#e6f5dc',c:'#0fb37c',px:'FRS'},
+  'Dairy & Chilled':{tone:'#e5eefb',c:'#0e9fe0',px:'DCH'},
+  'Bakery':{tone:'#f8ead8',c:'#f29a0b',px:'BAK'},
+  'Beverages':{tone:'#e0f3f6',c:'#14b8a6',px:'BEV'},
+  'Grocery':{tone:'#f1efdb',c:'#8b7ffa',px:'GRC'},
+  'Snacks':{tone:'#f3e6df',c:'#e5479a',px:'SNK'},
+  'Household':{tone:'#ece9fb',c:'#5b4cf0',px:'HSE'},
+  'Personal Care':{tone:'#fbe6ee',c:'#e9445a',px:'PRC'}
+};
+const catMeta=c=>CATS[c]||{tone:'#ece9fb',c:'#5b4cf0',px:'GEN'};
 
 const S={
- settings:{company:'Monarch Retail Group Ltd',address:'48 King Street, London EC2V 8EH',phone:'+44 20 7946 0321',vat:'GB 284 1923 77',email:'hello@monarch-retail.co.uk',currency:'GBP',taxRate:20,taxInclusive:true,invPrefix:'INV-',nextInv:10482,receiptHeader:'Thank you for shopping with us!',receiptFooter:'Returns accepted within 30 days with receipt.',showLogo:true,showBarcode:true,showVat:true,pointsPer:1,pointValue:.01,discountAlert:20,refundPinLimit:50,managerPin:'1234',autoBackup:true,twoFA:true,sessionTimeout:30},
- branch:'All branches',page:'overview',user:null,
- products:[],customers:[],orders:[],suppliers:[],pos:[],branches:[],transfers:[],employees:[],registers:[],promotions:[],giftcards:[],coupons:[],audit:[],movements:[],online:[],devices:[],backups:[],suspicious:[],waste:[],approvals:[],logins:[],notifs:[],
- cart:{items:[],customer:null,inv:{type:'pct',value:0,code:'',label:''}},held:[],posCat:'All',
+ settings:{
+   company:'Monarch Retail & Mart',
+   address:'Main Commercial Avenue',
+   phone:'+92 300 0000000',
+   vat:'NTN-0000000-0',
+   email:'faizanrizwan327@gmail.com',
+   currency:'PKR',
+   taxRate:0,
+   taxInclusive:true,
+   invPrefix:'INV-',
+   nextInv:1001,
+   receiptHeader:'Thank you for shopping with us!',
+   receiptFooter:'Items can be exchanged within 7 days with original receipt.',
+   showLogo:true,
+   showBarcode:true,
+   showVat:true,
+   pointsPer:1,
+   pointValue:1,
+   discountAlert:20,
+   refundPinLimit:500,
+   managerPin:'1234',
+   autoBackup:true,
+   twoFA:true,
+   sessionTimeout:30,
+   dailyTarget:50000
+ },
+ branch:'All branches',
+ page:'overview',
+ user:null,
+ products:[],
+ customers:[],
+ orders:[],
+ suppliers:[],
+ pos:[],
+ branches:[],
+ transfers:[],
+ employees:[],
+ registers:[],
+ zreports:[],
+ promotions:[],
+ giftcards:[],
+ coupons:[],
+ audit:[],
+ movements:[],
+ online:[],
+ devices:[],
+ backups:[],
+ suspicious:[],
+ waste:[],
+ approvals:[],
+ logins:[],
+ notifs:[],
+ cart:{items:[],customer:null,inv:{type:'pct',value:0,code:'',label:''}},
+ held:[],
+ posCat:'All',
  roles:['Owner','Manager','Cashier','Stock Clerk'],
  perms:[['sale','Process sales'],['disc10','Discounts up to 10%'],['discMax','Discounts above 10%'],['refund','Process refunds'],['void','Void transactions'],['price','Edit prices'],['stock','Adjust stock'],['po','Create purchase orders'],['reports','View reports'],['users','Manage users'],['settings','System settings']],
  matrix:{Owner:'sale disc10 discMax refund void price stock po reports users settings',Manager:'sale disc10 discMax refund void price stock po reports',Cashier:'sale disc10','Stock Clerk':'stock po'},
- notifPrefs:{sales:true,stock:true,refund:true,large:true,daily:true,expiry:false},
- cloudStatus:'Local persisted (MongoDB ready)'
+ notifPrefs:{sales:true,stock:true,refund:true,large:true,daily:true,expiry:true},
+ cloudStatus:'Connecting to MongoDB Atlas…'
 };
 
 function seedInitialData(){
-R=mulberry(20261122);
-S.products=RAW.map((r,i)=>{const [name,cat,price,cost,stock,min,max,emoji,exp,sold]=r;const id=i+1;return{id,name,cat,price,cost,wholesale:r2(price*.86),stock,min,max,emoji,expiry:exp,sold30:sold,sku:CATS[cat].px+'-'+String(100+id*7).padStart(3,'0'),barcode:'50'+String(1e10+id*73915371).slice(-11),batch:'B'+(2611+i)+'-'+String.fromCharCode(65+i%6),variants:id===8?['Whole bean','Espresso grind','Filter grind']:id===6?['Still','Sparkling']:id===21?['Normal hair','Dry hair']:[],extraBarcodes:id%5===0?['50'+String(2e10+id*1111).slice(-11)]:[]}});
-const CUSTS=[['Olivia James','Platinum',4820,0,500,'VIP'],['James Wilson','Gold',2310,45.2,300,'Retail'],['Sophia Brown','Gold',1980,0,300,'Retail'],['Noah Davis','Silver',640,0,150,'Retail'],['Emma Lee','Silver',520,120,400,'Trade'],['Liam Patel','Platinum',5210,0,800,'VIP'],['Ava Thompson','Silver',310,0,150,'Retail'],['Mason Clarke','Gold',1720,380,1000,'Wholesale'],['Isabella Khan','Silver',220,0,150,'Retail'],['Ethan Wright','Gold',1450,0,300,'Staff']];
-S.customers=CUSTS.map((c,i)=>({id:i+1,name:c[0],tier:c[1],points:c[2],credit:c[3],limit:c[4],group:c[5],email:c[0].toLowerCase().replace(' ','.')+'@mail.co.uk',phone:'+44 7'+String(700+i*37).slice(0,3)+' '+String(100000+i*48271).slice(0,6),spent:c[2]*.8+ri(100,900),visits:ri(8,110),birthday:new Date(1985+i,(i*5)%12,(i*7)%27+1),since:new Date(2021+(i%4),i%12,3)}));
-S.branches=[{id:'LON',name:'Central London',city:'London',manager:'Sarah Collins',staff:42,rev:58420,target:60000,orders:1520,c:'#5b4cf0',share:.41,status:'Open'},{id:'MAN',name:'Manchester',city:'Manchester',manager:'Marcus Lee',staff:36,rev:38210,target:36000,orders:1104,c:'#14b8a6',share:.27,status:'Open'},{id:'BIR',name:'Birmingham',city:'Birmingham',manager:'Chloe Evans',staff:28,rev:27950,target:31000,orders:842,c:'#f29a0b',share:.2,status:'Open'},{id:'LEE',name:'Leeds',city:'Leeds',manager:'Hannah Scott',staff:20,rev:18240,target:17500,orders:596,c:'#e5479a',share:.12,status:'Open'}];
-S.branches.forEach(b=>b.trend=Array.from({length:12},(_,i)=>b.rev/30*(0.7+R()*.5+i*.02)));
-const PINS=['0000','1234','2222','3333','4444','5555','6666','7777','8888'];
-S.employees=[['Alex Morgan','Owner','All',true],['Sarah Collins','Manager','LON',true],['Daniel Reed','Cashier','LON',true],['Priya Shah','Cashier','MAN',true],['Tom Baker','Stock Clerk','LON',false],['Chloe Evans','Manager','BIR',true],['Marcus Lee','Manager','MAN',false],['Hannah Scott','Cashier','LEE',true],['Ryan Ahmed','Cashier','BIR',false]].map((e,i)=>({id:i+1,name:e[0],role:e[1],branch:e[2],onShift:e[3],pin:PINS[i],password:'admin123',sales:e[1]==='Cashier'?ri(1400,3200):e[1]==='Manager'?ri(300,900):0,txns:ri(30,120),comm:e[1]==='Cashier'?1.5:e[1]==='Manager'?1:0,last:new Date(Date.now()-ri(5,600)*6e4),email:e[0].toLowerCase().replace(' ','.')+'@monarch-retail.co.uk',active:true}));
-S.registers=[{id:'REG-01',branch:'LON',name:'Front counter 1',open:true,cashier:'Daniel Reed',float:200,cash:842.5,cin:0,cout:40,card:2140.2,digital:610.8,opened:new Date(Date.now()-5.2*36e5)},{id:'REG-02',branch:'LON',name:'Front counter 2',open:true,cashier:'Sarah Collins',float:200,cash:615.3,cin:50,cout:0,card:1720.4,digital:402.1,opened:new Date(Date.now()-4.8*36e5)},{id:'REG-03',branch:'MAN',name:'Main till',open:true,cashier:'Priya Shah',float:150,cash:528.9,cin:0,cout:25,card:1388.6,digital:290.4,opened:new Date(Date.now()-6*36e5)},{id:'REG-04',branch:'BIR',name:'Express lane',open:false,cashier:'—',float:0,cash:0,cin:0,cout:0,card:0,digital:0,opened:null}];
-S.suppliers=[['FreshFields Produce Ltd','Mark Hughes','Fresh Produce',4820,2,96,4.8],['Northern Dairy Co.','Lucy Grant','Dairy & Chilled',3210,3,91,4.5],['Bakehouse Collective','Jon Price','Bakery',980,1,98,4.9],['Bean & Leaf Traders','Amira Said','Beverages',5640,5,88,4.3],['Pantry Wholesale UK','Kevin Doyle','Grocery',2950,4,93,4.6],['CleanHome Supplies','Nina Ford','Household',850,6,84,4.1]].map((s,i)=>({id:i+1,name:s[0],contact:s[1],cat:s[2],balance:s[3],lead:s[4],ontime:s[5],rating:s[6],email:s[1].toLowerCase().replace(' ','.')+'@'+s[0].split(' ')[0].toLowerCase()+'.co.uk',orders:ri(18,90)}));
-S.pos=[{id:'PO-2042',sup:4,status:'Draft',created:new Date(Date.now()-.3*DAY),eta:new Date(Date.now()+5*DAY),lines:[{pid:8,qty:40,cost:9.4,rec:0},{pid:14,qty:60,cost:1.9,rec:0}]},{id:'PO-2041',sup:1,status:'Ordered',created:new Date(Date.now()-1*DAY),eta:new Date(Date.now()+1*DAY),lines:[{pid:2,qty:80,cost:1.2,rec:0},{pid:10,qty:60,cost:1.7,rec:0},{pid:4,qty:50,cost:1.9,rec:0}]},{id:'PO-2040',sup:2,status:'Partially received',created:new Date(Date.now()-3*DAY),eta:new Date(Date.now()-.5*DAY),lines:[{pid:17,qty:60,cost:2.6,rec:0},{pid:9,qty:80,cost:1.95,rec:80}]},{id:'PO-2039',sup:5,status:'Received',created:new Date(Date.now()-6*DAY),eta:new Date(Date.now()-3*DAY),lines:[{pid:15,qty:100,cost:2.95,rec:100},{pid:23,qty:200,cost:.52,rec:200}]},{id:'PO-2038',sup:3,status:'Received',created:new Date(Date.now()-8*DAY),eta:new Date(Date.now()-7*DAY),lines:[{pid:3,qty:60,cost:1.6,rec:60},{pid:13,qty:80,cost:1.1,rec:80}]}];
-S.transfers=[{id:'TR-0318',from:'LON',to:'LEE',pid:7,qty:12,status:'In transit',date:new Date(Date.now()-.4*DAY)},{id:'TR-0317',from:'MAN',to:'BIR',pid:6,qty:48,status:'Completed',date:new Date(Date.now()-2*DAY)},{id:'TR-0316',from:'LON',to:'MAN',pid:8,qty:10,status:'Completed',date:new Date(Date.now()-3*DAY)}];
-S.promotions=[{id:1,name:'Sparkling Water — 3 for 2',type:'bxgy',pid:6,x:2,y:1,active:true,sched:'Always on',uses:284,rev:3420},{id:2,name:'Bakery happy hour — 25% off',type:'pct_cat',cat:'Bakery',pct:25,active:false,sched:'Daily · 18:00–20:00',uses:96,rev:880},{id:3,name:'Weekend fresh — 10% off produce',type:'pct_cat',cat:'Fresh Produce',pct:10,active:true,sched:'Sat – Sun',uses:412,rev:5210},{id:4,name:'Spend £50, save 5%',type:'tiered',min:50,pct:5,active:true,sched:'Always on',uses:138,rev:9870},{id:5,name:'Breakfast bundle — croissants + OJ',type:'bundle',pids:[13,14],off:1,active:true,sched:'Mon – Sun · until 11:00',uses:221,rev:1460},{id:6,name:'Dark chocolate BOGO',type:'bxgy',pid:5,x:1,y:1,active:false,sched:'Valentine’s week',uses:0,rev:0},{id:7,name:'Gold & Platinum members — 5% off',type:'group',tiers:['Gold','Platinum'],pct:5,active:true,sched:'Always on',uses:640,rev:14200}];
-S.giftcards=[{code:'GC-8F2K-19QA',bal:50,init:50,to:'Olivia James',exp:new Date(2027,10,1),c1:'#6a5cf6',c2:'#3a2bc4'},{code:'GC-4MZT-77LP',bal:12.4,init:25,to:'Noah Davis',exp:new Date(2027,5,12),c1:'#14b8a6',c2:'#0e7490'},{code:'GC-Q9WE-30RT',bal:100,init:100,to:'Corporate · Acme Ltd',exp:new Date(2027,11,31),c1:'#f29a0b',c2:'#e5479a'}];
-S.coupons=[{code:'WELCOME10',pct:10,uses:312,limit:1000,active:true,exp:new Date(2026,11,31)},{code:'FRESH15',pct:15,uses:88,limit:200,active:true,exp:new Date(2026,10,30)},{code:'VIP20',pct:20,uses:41,limit:100,active:false,exp:new Date(2026,11,24)}];
-S.online=[['WEB-5528','Grace Miller','Web','Click & Collect',4,38.2,0],['APP-1194','Leo Turner','App','Delivery',7,64.9,0],['WEB-5527','Mia Roberts','Web','Click & Collect',2,12.5,1],['MKT-0882','Oscar Hill','Marketplace','Delivery',3,27.8,1],['APP-1193','Ruby Green','App','Click & Collect',5,44.1,2],['WEB-5526','Jack Wood','Web','Click & Collect',1,18.5,2],['APP-1192','Freya Hall','App','Delivery',9,92.3,3],['WEB-5525','Harry King','Web','Click & Collect',3,22.6,3]].map((o,i)=>({id:o[0],cust:o[1],ch:o[2],type:o[3],items:o[4],total:o[5],stage:o[6],branch:['LON','MAN','LON','BIR'][i%4],time:new Date(Date.now()-ri(5,300)*6e4)}));
-S.devices=[['Barcode scanner','scan','Zebra DS2208','USB HID','Connected'],['Receipt printer','printer','Epson TM-T88VII','Ethernet','Connected'],['Cash drawer','inbox','APG Vasario','Printer-driven','Connected'],['Customer display','monitor','Sunmi D2s 10.1″','HDMI','Connected'],['Payment terminal','card','Verifone P400','Wi-Fi','Connected'],['Label printer','tag','Zebra ZD421','USB','Idle'],['Barcode printer','barChart','Brother QL-820','Bluetooth','Idle'],['Weighing scale','scale','CAS PD-II','RS-232','Connected'],['Touch-screen terminal','touch','Elo I-Series 15.6″','Integrated','Connected']].map((d,i)=>({id:i+1,name:d[0],ic:d[1],model:d[2],conn:d[3],status:d[4]}));
-S.backups=Array.from({length:6},(_,i)=>({id:'BK-'+(5520-i),time:new Date(Date.now()-(i*24+2)*36e5),type:i===2?'Manual':'Automatic',size:(1.84-i*.03).toFixed(2)+' GB',status:'Success',dur:ri(38,74)+'s'}));
-S.suspicious=[{id:1,type:'Excessive discount (35%)',who:'Ryan Ahmed',ref:'INV-10471',amount:62.4,risk:86,time:new Date(Date.now()-2*36e5),status:'Open'},{id:2,type:'Refund without receipt',who:'Hannah Scott',ref:'INV-10458',amount:48.9,risk:72,time:new Date(Date.now()-9*36e5),status:'Open'},{id:3,type:'Multiple voids in 10 min',who:'Ryan Ahmed',ref:'REG-04',amount:118.3,risk:64,time:new Date(Date.now()-27*36e5),status:'Open'},{id:4,type:'No-sale drawer opens (×4)',who:'Daniel Reed',ref:'REG-01',amount:0,risk:41,time:new Date(Date.now()-50*36e5),status:'Resolved'}];
-S.waste=[{time:new Date(Date.now()-3*36e5),pid:3,qty:4,reason:'Expired',user:'Tom Baker'},{time:new Date(Date.now()-20*36e5),pid:10,qty:6,reason:'Damaged',user:'Tom Baker'},{time:new Date(Date.now()-46*36e5),pid:9,qty:2,reason:'Damaged',user:'Sarah Collins'},{time:new Date(Date.now()-70*36e5),pid:13,qty:8,reason:'Expired',user:'Chloe Evans'}];
-S.approvals=[{id:1,type:'Refund',ref:'INV-10476',amount:84.6,by:'Daniel Reed',note:'Customer returned damaged coffee grinder accessory',time:new Date(Date.now()-25*6e4),status:'Pending'},{id:2,type:'Discount 30%',ref:'Cart · REG-03',amount:36.2,by:'Priya Shah',note:'Damaged packaging — olive oil',time:new Date(Date.now()-8*6e4),status:'Pending'}];
-S.logins=S.employees.slice(0,8).map((e,i)=>({who:e.name,role:e.role,ip:'81.2.'+(60+i*3)+'.'+(10+i*17),dev:['Chrome · macOS','POS Terminal · REG-0'+(1+i%3),'Safari · iPhone','Edge · Windows'][i%4],time:new Date(Date.now()-ri(3,900)*6e4),ok:i!==5}));
-S.movements=[{time:new Date(Date.now()-40*6e4),pid:9,type:'Received',qty:80,reason:'PO-2040',user:'Tom Baker'},{time:new Date(Date.now()-3*36e5),pid:3,type:'Write-off',qty:-4,reason:'Expired',user:'Tom Baker'},{time:new Date(Date.now()-5*36e5),pid:6,type:'Transfer out',qty:-48,reason:'TR-0317',user:'Marcus Lee'},{time:new Date(Date.now()-20*36e5),pid:10,type:'Write-off',qty:-6,reason:'Damaged',user:'Tom Baker'},{time:new Date(Date.now()-30*36e5),pid:22,type:'Count correction',qty:-3,reason:'Cycle count',user:'Sarah Collins'}];
-S.audit=[['login','Alex Morgan','Signed in','Chrome · macOS',12],['price','Sarah Collins','Price changed · Olive Oil £8.50 → £8.90','GRC-056',55],['refund','Daniel Reed','Refund requested · INV-10476','£84.60',25],['stock','Tom Baker','Stock received · PO-2040 (80 units)','DCH-070',40],['discount','Priya Shah','Discount override 30% requested','REG-03',8],['user','Alex Morgan','Role updated · Hannah Scott → Cashier','Team',190],['void','Ryan Ahmed','Transaction voided · REG-04','£18.40',1620],['settings','Alex Morgan','Receipt footer updated','Admin',2880]].map(a=>({type:a[0],who:a[1],what:a[2],ref:a[3],time:new Date(Date.now()-a[4]*6e4)}));
-S.notifs=[{ic:'alert',c:'var(--warning)',t:'Low stock: 5 products',s:'Olive Oil, Toothpaste, Sourdough and more',time:new Date(Date.now()-6e5),go:'inventory',unread:true},{ic:'key',c:'var(--primary)',t:'2 approvals waiting',s:'Refund INV-10476 · Discount on REG-03',time:new Date(Date.now()-15e5),go:'security',unread:true},{ic:'clock',c:'var(--danger)',t:'4 batches expire within 3 days',s:'Croissants, Sourdough, Strawberries',time:new Date(Date.now()-36e5),go:'expiry',unread:true},{ic:'trend',c:'var(--success)',t:'Manchester beat its target',s:'106% of weekly revenue goal',time:new Date(Date.now()-3*36e5),go:'branches',unread:false},{ic:'globe',c:'var(--info)',t:'2 new online orders',s:'Click & Collect · Central London',time:new Date(Date.now()-5*36e5),go:'omnichannel',unread:false}];
-const methods=['Card','Card','Card','Cash','Digital wallet','Card'];let inv=10441;const list=[];for(let k=0;k<41;k++){const t=new Date(Date.now()-(41-k)*ri(160,260)*6e4);const n=ri(1,5);const items=[];for(let j=0;j<n;j++){const p=pick(S.products);if(items.find(x=>x.id===p.id))continue;items.push({id:p.id,name:p.name,emoji:p.emoji,qty:ri(1,3),price:p.price,disc:0})}const total=r2(sum(items,x=>x.qty*x.price));const tax=r2(total-total/1.2);const cu=R()<.6?pick(S.customers):null;const m=pick(methods);const split=R()<.12;const status=R()<.08?'Refunded':R()<.05?'On account':'Completed';const pays=status==='On account'?[{method:'Card',amount:r2(total*.4)},{method:'On account',amount:r2(total-r2(total*.4))}]:split?[{method:'Cash',amount:r2(total/2)},{method:'Card',amount:r2(total-r2(total/2))}]:[{method:m,amount:total}];list.push({id:'ORD-'+(20800+k),inv:'INV-'+(inv++),time:t,customer:cu?cu.name:'Walk-in customer',cid:cu?cu.id:null,items,sub:total,itemDisc:0,promo:0,invDisc:0,tax,total,pays,status,cashier:pick(['Daniel Reed','Priya Shah','Hannah Scott','Ryan Ahmed','Sarah Collins']),branch:pick(['LON','LON','MAN','BIR','LEE']),reg:pick(['REG-01','REG-02','REG-03']),refunded:status==='Refunded'?total:0,channel:'In-store'})}S.orders=list.reverse();
-R=mulberry(77);
+  // Only the real Super Admin (Faizan Rizwan) + 1 Main Branch + 1 Main Register + Hardware connectors.
+  // ZERO dummy products, ZERO dummy orders, ZERO dummy customers, ZERO dummy suppliers.
+  S.employees=[{
+    id:1,
+    name:'Faizan Rizwan',
+    role:'Owner',
+    branch:'All',
+    onShift:true,
+    pin:'1234',
+    password:'admin123',
+    sales:0,
+    txns:0,
+    comm:0,
+    last:new Date(),
+    email:'faizanrizwan327@gmail.com',
+    altEmail:'faizanrizwan327@gamil.com',
+    active:true
+  }];
+  S.branches=[{
+    id:'MAIN',
+    name:'Main Branch',
+    city:'Head Office',
+    manager:'Faizan Rizwan',
+    staff:1,
+    rev:0,
+    target:500000,
+    orders:0,
+    c:'#5b4cf0',
+    share:1,
+    status:'Open',
+    trend:[0,0,0,0,0,0,0,0,0,0,0,0]
+  }];
+  S.registers=[{
+    id:'REG-01',
+    branch:'MAIN',
+    name:'Main Counter 1',
+    open:true,
+    cashier:'Faizan Rizwan',
+    float:0,
+    cash:0,
+    cin:0,
+    cout:0,
+    card:0,
+    digital:0,
+    opened:new Date()
+  }];
+  S.devices=[
+    ['Barcode scanner','scan','USB / Wireless Scanner','USB HID','Connected'],
+    ['Receipt printer','printer','Thermal 80mm Printer','USB / LAN','Connected'],
+    ['Cash drawer','inbox','RJ11 Cash Drawer','Printer-driven','Connected'],
+    ['Customer display','monitor','Customer Pole / Screen','HDMI / USB','Connected'],
+    ['Payment terminal','card','Card POS Terminal','Wi-Fi / LAN','Connected'],
+    ['Label printer','tag','Barcode Label Printer','USB','Connected'],
+    ['Weighing scale','scale','Digital Scale','RS-232 / USB','Connected']
+  ].map((d,i)=>({id:i+1,name:d[0],ic:d[1],model:d[2],conn:d[3],status:d[4]}));
+
+  S.products=[];
+  S.customers=[];
+  S.orders=[];
+  S.suppliers=[];
+  S.pos=[];
+  S.transfers=[];
+  S.zreports=[];
+  S.promotions=[];
+  S.giftcards=[];
+  S.coupons=[];
+  S.audit=[];
+  S.movements=[];
+  S.online=[];
+  S.backups=[];
+  S.suspicious=[];
+  S.waste=[];
+  S.approvals=[];
+  S.logins=[];
+  S.notifs=[];
+  S.held=[];
 }
 
-const P=id=>S.products.find(p=>p.id===+id);
+const P=id=>S.products.find(p=>p.id===+id)||{id:0,name:'Deleted item',cat:'Grocery',price:0,cost:0,wholesale:0,stock:0,min:0,max:100,emoji:'📦',expiry:0,sold30:0,sku:'—',barcode:'—',batch:'—',variants:[],extraBarcodes:[]};
 const C=id=>S.customers.find(c=>c.id===+id);
-const CASHIERS=['Daniel Reed','Priya Shah','Hannah Scott','Ryan Ahmed','Sarah Collins'];
+const isAdmin=()=>!S.user||S.user.role==='Owner';
 
-/* ================= PERSISTENCE (LocalStorage + Optional MongoDB API) ================= */
-const PERSIST_KEYS=['settings','products','customers','orders','suppliers','pos','branches','transfers','employees','registers','promotions','giftcards','coupons','audit','movements','online','devices','backups','suspicious','waste','approvals','logins','notifs','held','roles','matrix','notifPrefs'];
+function syncLiveStats(){
+  // Recompute branch & employee sales live from S.orders
+  const validOrders=S.orders.filter(o=>o.status!=='Refunded');
+  S.branches.forEach(b=>{
+    const bo=validOrders.filter(o=>o.branch===b.id||S.branches.length===1);
+    b.rev=r2(sum(bo,o=>o.total-(o.refunded||0)));
+    b.orders=bo.length;
+    b.staff=S.employees.filter(e=>e.branch===b.id||e.branch==='All').length;
+    // Last 12 days trend for this branch
+    b.trend=Array.from({length:12},(_,i)=>{
+      const d0=new Date();d0.setHours(0,0,0,0);d0.setDate(d0.getDate()-(11-i));
+      const d1=new Date(d0.getTime()+DAY);
+      return r2(sum(bo.filter(o=>{const t=new Date(o.time);return t>=d0&&t<d1}),o=>o.total-(o.refunded||0)));
+    });
+  });
+  const today0=new Date();today0.setHours(0,0,0,0);
+  S.employees.forEach(e=>{
+    const eo=validOrders.filter(o=>o.cashier===e.name&&new Date(o.time)>=today0);
+    e.sales=r2(sum(eo,o=>o.total-(o.refunded||0)));
+    e.txns=eo.length;
+  });
+}
+
+/* ================= PERSISTENCE (LocalStorage + MongoDB Atlas API) ================= */
+const PERSIST_KEYS=['settings','products','customers','orders','suppliers','pos','branches','transfers','employees','registers','zreports','promotions','giftcards','coupons','audit','movements','online','devices','backups','suspicious','waste','approvals','logins','notifs','held','roles','matrix','notifPrefs'];
 function reviveDates(obj){
   if(!obj||typeof obj!=='object')return obj;
   for(const k of Object.keys(obj)){
@@ -164,50 +290,99 @@ function reviveDates(obj){
   }
   return obj;
 }
+function ensureAdminAccount(){
+  if(!Array.isArray(S.employees))S.employees=[];
+  let adm=S.employees.find(e=>e.email&&e.email.toLowerCase().includes('faizanrizwan327@'));
+  if(!adm){
+    adm={
+      id:1,
+      name:'Faizan Rizwan',
+      role:'Owner',
+      branch:'All',
+      onShift:true,
+      pin:S.settings?.managerPin||'1234',
+      password:'admin123',
+      sales:0,
+      txns:0,
+      comm:0,
+      last:new Date(),
+      email:'faizanrizwan327@gmail.com',
+      altEmail:'faizanrizwan327@gamil.com',
+      active:true
+    };
+    S.employees.unshift(adm);
+  }else{
+    adm.role='Owner';
+    adm.altEmail='faizanrizwan327@gamil.com';
+    if(!adm.pin)adm.pin='1234';
+    if(!adm.password)adm.password='admin123';
+  }
+  if(!S.branches||!S.branches.length){
+    S.branches=[{id:'MAIN',name:'Main Branch',city:'Head Office',manager:'Faizan Rizwan',staff:1,rev:0,target:500000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}];
+  }
+  if(!S.registers||!S.registers.length){
+    S.registers=[{id:'REG-01',branch:S.branches[0].id,name:'Main Counter 1',open:true,cashier:'Faizan Rizwan',float:0,cash:0,cin:0,cout:0,card:0,digital:0,opened:new Date()}];
+  }
+}
 function saveState(){
   try{
+    syncLiveStats();
     const snap={};
     PERSIST_KEYS.forEach(k=>snap[k]=S[k]);
-    localStorage.setItem('monarch_pos_state_v1',JSON.stringify(snap));
-    if(window._cloudConnected){
-      fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)}).catch(()=>{});
-    }
+    localStorage.setItem('monarch_live_state_v2',JSON.stringify(snap));
+    fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)}).then(r=>r.ok?r.json():null).then(d=>{
+      if(d&&d.ok){
+        window._cloudConnected=true;
+        S.cloudStatus=d.mongo?'MongoDB Atlas · Live Synced':'Local Server · Synced';
+        const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
+      }
+    }).catch(()=>{});
   }catch(e){}
 }
 function loadState(){
+  // Remove old v1 demo storage if present
+  try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1')}catch(e){}
   seedInitialData();
-  const PINS=['0000','1234','2222','3333','4444','5555','6666','7777','8888'];
   try{
-    const raw=localStorage.getItem('monarch_pos_state_v1');
+    const raw=localStorage.getItem('monarch_live_state_v2');
     if(raw){
       const snap=reviveDates(JSON.parse(raw));
       PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
     }
-    const u=localStorage.getItem('monarch_pos_user_v1');
+    const u=localStorage.getItem('monarch_live_user_v2');
     if(u)S.user=JSON.parse(u);
   }catch(e){}
-  S.employees.forEach((e,i)=>{if(!e.pin)e.pin=PINS[i]||String(1000+e.id*111).slice(0,4);if(!e.password)e.password='admin123'});
-  // Probe optional /api/state (Vercel / MongoDB serverless API)
+  ensureAdminAccount();
+  syncLiveStats();
+
   fetch('/api/state').then(r=>r.ok?r.json():null).then(d=>{
     if(d&&d.ok){
       window._cloudConnected=true;
-      S.cloudStatus=d.mongo?'MongoDB Connected · Live':'API Connected · Memory/Local';
+      S.cloudStatus=d.mongo?'MongoDB Atlas · Connected':'Server API · Connected';
       const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
-      if(d.state&&d.state.products){
+      if(d.state&&Array.isArray(d.state.employees)){
         const snap=reviveDates(d.state);
         PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
+        ensureAdminAccount();
+        syncLiveStats();
+        if(window.updateBranchSelect)updateBranchSelect();
         if(window.refresh)refresh();
       }else{
         saveState();
       }
     }
-  }).catch(()=>{});
+  }).catch(()=>{
+    S.cloudStatus='Offline Mode · Local Persisted';
+    const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
+  });
 }
 function resetDemoState(){
-  localStorage.removeItem('monarch_pos_state_v1');
+  localStorage.removeItem('monarch_live_state_v2');
   seedInitialData();
+  fetch('/api/state',{method:'DELETE'}).catch(()=>{});
   saveState();
-  if(window.toast)toast('Demo dataset restored to factory defaults','info');
+  if(window.updateBranchSelect)updateBranchSelect();
+  if(window.toast)toast('All data cleared — fresh live workspace ready','info');
   if(window.refresh)refresh();
 }
 loadState();

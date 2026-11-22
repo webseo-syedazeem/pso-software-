@@ -2,9 +2,17 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+// Load .env if present
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split(/\r?\n/).forEach(line => {
+    const m = line.match(/^\s*([\w.-]+)\s*=\s*"?([^"]*)"?\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  });
+}
+
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const STATE_FILE = path.join(DATA_DIR, 'state.json');
+const stateHandler = require('./api/state.js');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -16,54 +24,29 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === '/api/state') {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    // If MONGODB_URI is configured, delegate to the Vercel handler
-    if (process.env.MONGODB_URI) {
-      let raw = '';
-      req.on('data', c => (raw += c));
-      req.on('end', async () => {
+    let raw = '';
+    req.on('data', c => (raw += c));
+    req.on('end', async () => {
+      try {
         req.body = raw ? JSON.parse(raw) : {};
-        const handler = require('./api/state.js');
-        const wrapRes = {
-          setHeader: (k, v) => res.setHeader(k, v),
-          status: code => ({
-            json: obj => { res.statusCode = code; res.end(JSON.stringify(obj)); },
-            end: () => { res.statusCode = code; res.end(); }
-          })
-        };
-        await handler(req, wrapRes);
-      });
-      return;
-    }
-
-    // Local disk persistence fallback (data/state.json)
-    if (req.method === 'GET') {
-      const state = fs.existsSync(STATE_FILE)
-        ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
-        : null;
-      res.end(JSON.stringify({ ok: true, mongo: false, state }));
-      return;
-    }
-    if (req.method === 'POST') {
-      let raw = '';
-      req.on('data', chunk => (raw += chunk));
-      req.on('end', () => {
-        try {
-          fs.writeFileSync(STATE_FILE, raw, 'utf8');
-          res.end(JSON.stringify({ ok: true, mongo: false }));
-        } catch (e) {
-          res.statusCode = 500;
-          res.end(JSON.stringify({ ok: false, error: e.message }));
-        }
-      });
-      return;
-    }
+      } catch (e) {
+        req.body = {};
+      }
+      const wrapRes = {
+        setHeader: (k, v) => res.setHeader(k, v),
+        status: code => ({
+          json: obj => { res.statusCode = code; res.end(JSON.stringify(obj)); },
+          end: () => { res.statusCode = code; res.end(); }
+        })
+      };
+      await stateHandler(req, wrapRes);
+    });
+    return;
   }
 
   let filePath = path.join(__dirname, url.pathname === '/' ? 'index.html' : url.pathname);
@@ -80,5 +63,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Monarch Retail OS running at http://localhost:${PORT}`);
+  console.log(`Monarch Retail OS (MongoDB Atlas Live) running at http://localhost:${PORT}`);
 });
