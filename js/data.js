@@ -115,13 +115,13 @@ const S={
    company:'Monarch Retail & Mart',
    address:'Main Commercial Avenue',
    phone:'+92 300 0000000',
-   vat:'NTN-0000000-0',
-   email:'faizanrizwan327@gmail.com',
+   vat:'NTN-4829104-7',
+   email:'admin@monarchpos.com',
    currency:'PKR',
-   taxRate:0,
+   taxRate:5,
    taxInclusive:true,
    invPrefix:'INV-',
-   nextInv:1001,
+   nextInv:1015,
    receiptHeader:'Thank you for shopping with us!',
    receiptFooter:'Items can be exchanged within 7 days with original receipt.',
    showLogo:true,
@@ -173,53 +173,29 @@ const S={
  cloudStatus:'Connecting to MongoDB Atlas…'
 };
 
-function seedInitialData(){
-  // Only the real Super Admin (Faizan Rizwan) + 1 Main Branch + 1 Main Register + Hardware connectors.
-  // ZERO dummy products, ZERO dummy orders, ZERO dummy customers, ZERO dummy suppliers.
-  S.employees=[{
-    id:1,
-    name:'Faizan Rizwan',
-    role:'Owner',
-    branch:'All',
-    onShift:true,
-    pin:'1234',
-    password:'admin123',
-    sales:0,
-    txns:0,
-    comm:0,
-    last:new Date(),
-    email:'faizanrizwan327@gmail.com',
-    altEmail:'faizanrizwan327@gamil.com',
-    active:true
-  }];
-  S.branches=[{
-    id:'MAIN',
-    name:'Main Branch',
-    city:'Head Office',
-    manager:'Faizan Rizwan',
-    staff:1,
-    rev:0,
-    target:500000,
-    orders:0,
-    c:'#5b4cf0',
-    share:1,
-    status:'Open',
-    trend:[0,0,0,0,0,0,0,0,0,0,0,0]
-  }];
-  S.registers=[{
-    id:'REG-01',
-    branch:'MAIN',
-    name:'Main Counter 1',
-    open:true,
-    cashier:'Faizan Rizwan',
-    float:0,
-    cash:0,
-    cin:0,
-    cout:0,
-    card:0,
-    digital:0,
-    opened:new Date()
-  }];
+function seedInitialData(emptyOnly=false){
+  S.employees=[
+    {id:1,name:'Store Admin',role:'Owner',branch:'All',onShift:true,pin:'1234',password:'admin123',sales:0,txns:0,comm:0,last:new Date(),email:'admin@monarchpos.com',active:true},
+    ...(emptyOnly?[]:[
+      {id:2,name:'Sarah Khan',role:'Manager',branch:'MAIN',onShift:true,pin:'2222',password:'manager123',sales:0,txns:0,comm:1.5,last:new Date(Date.now()-1800e3),email:'sarah@monarchpos.com',active:true},
+      {id:3,name:'Bilal Ahmed',role:'Cashier',branch:'MAIN',onShift:true,pin:'3333',password:'cashier123',sales:0,txns:0,comm:1.0,last:new Date(Date.now()-3600e3),email:'bilal@monarchpos.com',active:true},
+      {id:4,name:'Usman Ali',role:'Cashier',branch:'CITY',onShift:false,pin:'4444',password:'cashier123',sales:0,txns:0,comm:1.0,last:new Date(Date.now()-14400e3),email:'usman@monarchpos.com',active:true}
+    ])
+  ];
+  S.branches=emptyOnly?[
+    {id:'MAIN',name:'Main Flagship Mart',city:'Head Office',manager:'Store Admin',staff:1,rev:0,target:500000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}
+  ]:[
+    {id:'MAIN',name:'Main Flagship Mart',city:'Commercial Area',manager:'Store Admin',staff:3,rev:0,target:250000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]},
+    {id:'CITY',name:'City Center Branch',city:'Central Avenue',manager:'Sarah Khan',staff:2,rev:0,target:180000,orders:0,c:'#14b8a6',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]},
+    {id:'EXP',name:'Express Mart Branch',city:'Phase 5',manager:'Store Admin',staff:2,rev:0,target:120000,orders:0,c:'#f29a0b',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}
+  ];
+  S.registers=emptyOnly?[
+    {id:'REG-01',branch:'MAIN',name:'Main Counter 1',open:true,cashier:'Store Admin',float:0,cash:0,cin:0,cout:0,card:0,digital:0,opened:new Date()}
+  ]:[
+    {id:'REG-01',branch:'MAIN',name:'Main Counter 1',open:true,cashier:'Store Admin',float:15000,cash:18450,cin:2000,cout:500,card:24600,digital:9800,opened:new Date(Date.now()-5*3600e3)},
+    {id:'REG-02',branch:'MAIN',name:'Fast Lane Counter 2',open:true,cashier:'Bilal Ahmed',float:10000,cash:11200,cin:0,cout:0,card:14300,digital:6400,opened:new Date(Date.now()-4*3600e3)},
+    {id:'REG-03',branch:'CITY',name:'City Counter 1',open:true,cashier:'Usman Ali',float:12000,cash:9500,cin:0,cout:0,card:12800,digital:4100,opened:new Date(Date.now()-6*3600e3)}
+  ];
   S.devices=[
     ['Barcode scanner','scan','USB / Wireless Scanner','USB HID','Connected'],
     ['Receipt printer','printer','Thermal 80mm Printer','USB / LAN','Connected'],
@@ -230,25 +206,169 @@ function seedInitialData(){
     ['Weighing scale','scale','Digital Scale','RS-232 / USB','Connected']
   ].map((d,i)=>({id:i+1,name:d[0],ic:d[1],model:d[2],conn:d[3],status:d[4]}));
 
-  S.products=[];
-  S.customers=[];
-  S.orders=[];
-  S.suppliers=[];
-  S.pos=[];
-  S.transfers=[];
+  if(emptyOnly){
+    S.products=[];S.customers=[];S.orders=[];S.suppliers=[];S.pos=[];S.transfers=[];S.zreports=[];
+    S.promotions=[];S.giftcards=[];S.coupons=[];S.audit=[];S.movements=[];S.online=[];S.backups=[];
+    S.suspicious=[];S.waste=[];S.approvals=[];S.logins=[];S.notifs=[];S.held=[];
+    return;
+  }
+
+  S.products=[
+    {id:1,sku:'GRC-101',barcode:'8964001100101',name:'Super Kernel Basmati Rice 5kg',cat:'Grocery',cost:1450,price:1850,wholesale:1720,stock:48,min:15,max:120,emoji:'🌾',expiry:240,sold30:34,batch:'B1001',variants:['1kg','5kg','10kg'],extraBarcodes:[]},
+    {id:2,sku:'DCH-102',barcode:'8964001100102',name:'Organic Full Cream Milk 1L',cat:'Dairy & Chilled',cost:240,price:310,wholesale:290,stock:85,min:25,max:150,emoji:'🥛',expiry:5,sold30:92,batch:'B1002',variants:['500ml','1L'],extraBarcodes:[]},
+    {id:3,sku:'BAK-103',barcode:'8964001100103',name:'Artisan Multigrain Bread',cat:'Bakery',cost:160,price:240,wholesale:215,stock:8,min:15,max:60,emoji:'🍞',expiry:2,sold30:64,batch:'B1003',variants:['Regular','Large'],extraBarcodes:[]},
+    {id:4,sku:'FRS-104',barcode:'8964001100104',name:'Imported Red Gala Apples 1kg',cat:'Fresh Produce',cost:320,price:460,wholesale:410,stock:42,min:15,max:90,emoji:'🍎',expiry:9,sold30:51,batch:'B1004',variants:['1kg'],extraBarcodes:[]},
+    {id:5,sku:'BEV-105',barcode:'8964001100105',name:'Arabica Roast Ground Coffee 250g',cat:'Beverages',cost:950,price:1350,wholesale:1220,stock:29,min:10,max:80,emoji:'☕',expiry:320,sold30:27,batch:'B1005',variants:['250g','500g'],extraBarcodes:[]},
+    {id:6,sku:'SNK-106',barcode:'8964001100106',name:'Belgian Dark Chocolate Bar 100g',cat:'Snacks',cost:340,price:490,wholesale:440,stock:64,min:20,max:120,emoji:'🍫',expiry:180,sold30:78,batch:'B1006',variants:['70% Cocoa','Sea Salt'],extraBarcodes:[]},
+    {id:7,sku:'GRC-107',barcode:'8964001100107',name:'Extra Virgin Olive Oil 750ml',cat:'Grocery',cost:1650,price:2250,wholesale:2050,stock:7,min:12,max:60,emoji:'🫒',expiry:365,sold30:22,batch:'B1007',variants:['500ml','750ml'],extraBarcodes:[]},
+    {id:8,sku:'DCH-108',barcode:'8964001100108',name:'Cheddar Cheese Block 400g',cat:'Dairy & Chilled',cost:620,price:860,wholesale:790,stock:31,min:10,max:75,emoji:'🧀',expiry:45,sold30:41,batch:'B1008',variants:['200g','400g'],extraBarcodes:[]},
+    {id:9,sku:'BEV-109',barcode:'8964001100109',name:'Fresh Squeezed Orange Juice 1L',cat:'Beverages',cost:310,price:450,wholesale:410,stock:52,min:15,max:100,emoji:'🧃',expiry:6,sold30:58,batch:'B1009',variants:['1L'],extraBarcodes:[]},
+    {id:10,sku:'HSE-110',barcode:'8964001100110',name:'Ultra Liquid Laundry Detergent 2L',cat:'Household',cost:820,price:1150,wholesale:1040,stock:38,min:12,max:90,emoji:'🧴',expiry:540,sold30:31,batch:'B1010',variants:['1L','2L'],extraBarcodes:[]},
+    {id:11,sku:'PRC-111',barcode:'8964001100111',name:'Argan Repair Hair Shampoo 400ml',cat:'Personal Care',cost:580,price:850,wholesale:770,stock:44,min:12,max:90,emoji:'🫧',expiry:480,sold30:29,batch:'B1011',variants:['400ml'],extraBarcodes:[]},
+    {id:12,sku:'SNK-112',barcode:'8964001100112',name:'Roasted California Almonds 500g',cat:'Snacks',cost:1150,price:1580,wholesale:1450,stock:6,min:10,max:60,emoji:'🥜',expiry:210,sold30:36,batch:'B1012',variants:['250g','500g'],extraBarcodes:[]},
+    {id:13,sku:'FRS-113',barcode:'8964001100113',name:'Fresh Farm Strawberries 500g',cat:'Fresh Produce',cost:260,price:380,wholesale:340,stock:19,min:10,max:60,emoji:'🍓',expiry:3,sold30:47,batch:'B1013',variants:['500g'],extraBarcodes:[]},
+    {id:14,sku:'BAK-114',barcode:'8964001100114',name:'Butter Croissants Pack of 4',cat:'Bakery',cost:320,price:480,wholesale:430,stock:24,min:10,max:60,emoji:'🥐',expiry:4,sold30:39,batch:'B1014',variants:['4 Pack'],extraBarcodes:[]},
+    {id:15,sku:'GRC-115',barcode:'8964001100115',name:'Wildflower Raw Honey 500g',cat:'Grocery',cost:780,price:1120,wholesale:1010,stock:33,min:10,max:80,emoji:'🍯',expiry:720,sold30:25,batch:'B1015',variants:['500g'],extraBarcodes:[]},
+    {id:16,sku:'HSE-116',barcode:'8964001100116',name:'Antibacterial Surface Spray 500ml',cat:'Household',cost:290,price:420,wholesale:380,stock:55,min:15,max:110,emoji:'🧽',expiry:400,sold30:33,batch:'B1016',variants:['500ml'],extraBarcodes:[]}
+  ];
+
+  S.customers=[
+    {id:1,name:'Zainab Tariq',phone:'+92 300 4128901',email:'zainab.t@example.com',tier:'Platinum',group:'VIP',points:4650,spent:68400,visits:19,credit:0,limit:50000,birthday:'1994-11-28'},
+    {id:2,name:'Kamran Siddiqui',phone:'+92 321 9841200',email:'kamran.s@example.com',tier:'Gold',group:'Retail',points:2180,spent:34900,visits:11,credit:2400,limit:25000,birthday:'1989-12-05'},
+    {id:3,name:'Ayesha Malik',phone:'+92 333 5512098',email:'ayesha.m@example.com',tier:'Platinum',group:'VIP',points:5120,spent:82500,visits:24,credit:0,limit:50000,birthday:'1996-11-25'},
+    {id:4,name:'Hassan Raza',phone:'+92 345 7712304',email:'hassan.r@example.com',tier:'Gold',group:'Trade',points:1840,spent:29600,visits:9,credit:4500,limit:40000,birthday:'1991-04-14'},
+    {id:5,name:'Nadia Farooq',phone:'+92 312 6639011',email:'nadia.f@example.com',tier:'Silver',group:'Retail',points:790,spent:12800,visits:5,credit:0,limit:15000,birthday:'1998-08-19'},
+    {id:6,name:'Omar Sheikh',phone:'+92 301 8845120',email:'omar.s@example.com',tier:'Silver',group:'Wholesale',points:1120,spent:21400,visits:7,credit:0,limit:60000,birthday:'1987-02-10'}
+  ];
+
+  S.suppliers=[
+    {id:1,name:'Prime Foods & Grains Distribution',contact:'Tariq Mehmood',cat:'Grocery',balance:42000,lead:2,ontime:97,rating:5,email:'orders@primefoods.pk',orders:8},
+    {id:2,name:'Fresh Valley Dairy & Farms',contact:'Salman Qureshi',cat:'Dairy & Chilled',balance:18500,lead:1,ontime:99,rating:5,email:'supply@freshvalley.pk',orders:14},
+    {id:3,name:'Continental Beverages & Snacks',contact:'Adnan Javed',cat:'Beverages',balance:0,lead:3,ontime:94,rating:4.8,email:'b2b@continentalbev.pk',orders:6},
+    {id:4,name:'Unicare Household & FMCG',contact:'Faisal Karim',cat:'Household',balance:27400,lead:2,ontime:95,rating:4.9,email:'sales@unicarefmcg.pk',orders:5}
+  ];
+
+  S.pos=[
+    {id:'PO-1001',sup:1,status:'Received',created:new Date(Date.now()-5*DAY),eta:new Date(Date.now()-3*DAY),lines:[{pid:1,qty:40,cost:1450,rec:40},{pid:7,qty:20,cost:1650,rec:20}]},
+    {id:'PO-1002',sup:2,status:'Partially received',created:new Date(Date.now()-2*DAY),eta:new Date(Date.now()+1*DAY),lines:[{pid:2,qty:60,cost:240,rec:40},{pid:8,qty:25,cost:620,rec:25}]},
+    {id:'PO-1003',sup:3,status:'Ordered',created:new Date(Date.now()-1*DAY),eta:new Date(Date.now()+2*DAY),lines:[{pid:5,qty:30,cost:950,rec:0},{pid:12,qty:25,cost:1150,rec:0}]}
+  ];
+
+  S.promotions=[
+    {id:1,name:'Bakery Fresh 15% Off',type:'pct_cat',cat:'Bakery',pct:15,active:true,sched:'Daily Evening',uses:18,rev:14200},
+    {id:2,name:'Buy 2 Get 1 Belgian Chocolate',type:'bxgy',pid:6,x:2,y:1,active:true,sched:'Always on',uses:14,rev:19600},
+    {id:3,name:'VIP Platinum & Gold 5% Off',type:'group',tiers:['Platinum','Gold'],pct:5,active:true,sched:'Members Always',uses:26,rev:54800},
+    {id:4,name:'Spend Rs 5,000 Save 10%',type:'tiered',min:5000,pct:10,active:true,sched:'Weekend Special',uses:9,rev:48500}
+  ];
+
+  S.giftcards=[
+    {code:'GC-8841-2090',to:'Zainab Tariq',initial:10000,bal:6500,active:true,issued:new Date(Date.now()-10*DAY)},
+    {code:'GC-5520-9914',to:'Ayesha Malik',initial:5000,bal:5000,active:true,issued:new Date(Date.now()-3*DAY)}
+  ];
+
+  S.coupons=[
+    {code:'WELCOME10',pct:10,uses:24,max:200,active:true},
+    {code:'MART20',pct:20,uses:9,max:50,active:true}
+  ];
+
+  S.online=[
+    {id:'WEB-1001',cust:'Zainab Tariq',ch:'Web',type:'Click & Collect',items:4,total:4260,stage:0,branch:'MAIN',time:new Date(Date.now()-25*60e3)},
+    {id:'APP-1002',cust:'Kamran Siddiqui',ch:'App',type:'Delivery',items:3,total:3190,stage:1,branch:'MAIN',time:new Date(Date.now()-55*60e3)},
+    {id:'WEB-1003',cust:'Ayesha Malik',ch:'Web',type:'Click & Collect',items:5,total:5840,stage:2,branch:'CITY',time:new Date(Date.now()-110*60e3)},
+    {id:'MKT-1004',cust:'Hassan Raza',ch:'Marketplace',type:'Delivery',items:2,total:2700,stage:3,branch:'MAIN',time:new Date(Date.now()-240*60e3)}
+  ];
+
+  const mkOrder=(idx,daysAgo,hr,br,cashier,custObj,itemPairs,payMethod)=>{
+    const d=new Date(Date.now()-daysAgo*DAY);
+    d.setHours(hr,15+(idx*7)%40,0,0);
+    const items=itemPairs.map(([pid,qty])=>{
+      const p=S.products.find(x=>x.id===pid)||S.products[0];
+      return{id:p.id,name:p.name,emoji:p.emoji,qty,price:p.price,disc:0};
+    });
+    const sub=r2(sum(items,i=>i.qty*i.price));
+    const tax=r2(sub-sub/1.05);
+    return{
+      id:'ORD-'+(1001+idx),
+      inv:'INV-'+(1001+idx),
+      time:d,
+      customer:custObj?custObj.name:'Walk-in customer',
+      cid:custObj?custObj.id:null,
+      items,
+      sub,
+      itemDisc:0,
+      promo:0,
+      lines:[],
+      invDisc:0,
+      invLabel:'',
+      tax,
+      total:sub,
+      pays:[{method:payMethod,amount:sub}],
+      change:0,
+      status:'Completed',
+      cashier,
+      branch:br,
+      reg:br==='CITY'?'REG-03':'REG-01',
+      refunded:0,
+      channel:'In-store',
+      earned:custObj?Math.floor(sub):0,
+      session:daysAgo===0
+    };
+  };
+
+  S.orders=[
+    mkOrder(13,0,14,'MAIN','Store Admin',S.customers[0],[[1,2],[5,1],[6,2]],'Card'),
+    mkOrder(12,0,12,'MAIN','Bilal Ahmed',S.customers[2],[[2,4],[4,2],[8,1],[9,2]],'Cash'),
+    mkOrder(11,0,11,'CITY','Usman Ali',S.customers[1],[[7,1],[12,1],[15,1]],'Digital wallet'),
+    mkOrder(10,0,10,'MAIN','Store Admin',null,[[3,2],[13,2],[14,1]],'Cash'),
+    mkOrder(9,1,18,'MAIN','Bilal Ahmed',S.customers[3],[[1,1],[10,2],[11,1]],'Card'),
+    mkOrder(8,1,15,'CITY','Usman Ali',S.customers[4],[[5,2],[6,3]],'Cash'),
+    mkOrder(7,2,17,'MAIN','Store Admin',S.customers[0],[[7,2],[8,2],[12,1]],'Card'),
+    mkOrder(6,2,13,'EXP','Store Admin',S.customers[5],[[1,3],[2,6]],'Bank transfer'),
+    mkOrder(5,3,16,'MAIN','Bilal Ahmed',S.customers[2],[[10,2],[15,2],[16,3]],'Card'),
+    mkOrder(4,4,19,'CITY','Usman Ali',S.customers[1],[[4,3],[9,4],[14,2]],'Cash'),
+    mkOrder(3,5,15,'MAIN','Store Admin',S.customers[3],[[1,2],[5,2],[7,1]],'Card'),
+    mkOrder(2,6,14,'EXP','Store Admin',S.customers[4],[[2,5],[6,4],[8,2]],'Digital wallet'),
+    mkOrder(1,6,11,'MAIN','Bilal Ahmed',null,[[11,2],[13,3]],'Cash'),
+    mkOrder(0,7,17,'MAIN','Store Admin',S.customers[0],[[1,2],[12,2]],'Card')
+  ];
+
+  S.movements=[
+    {time:new Date(Date.now()-3600e3),pid:1,type:'Sale',qty:-2,reason:'INV-1014',user:'Store Admin'},
+    {time:new Date(Date.now()-7200e3),pid:2,type:'Sale',qty:-4,reason:'INV-1013',user:'Bilal Ahmed'},
+    {time:new Date(Date.now()-2*DAY),pid:2,type:'Received',qty:40,reason:'PO-1002',user:'Sarah Khan'},
+    {time:new Date(Date.now()-5*DAY),pid:1,type:'Received',qty:40,reason:'PO-1001',user:'Store Admin'}
+  ];
+
+  S.audit=[
+    {type:'sale',who:'Store Admin',what:'Sale completed · INV-1014',ref:'Rs 6,030.00',time:new Date(Date.now()-35*60e3)},
+    {type:'sale',who:'Bilal Ahmed',what:'Sale completed · INV-1013',ref:'Rs 3,920.00',time:new Date(Date.now()-95*60e3)},
+    {type:'stock',who:'Sarah Khan',what:'Goods received · PO-1002 (65 units)',ref:'Fresh Valley Dairy & Farms',time:new Date(Date.now()-4*3600e3)},
+    {type:'login',who:'Store Admin',what:'Signed in via POS Terminal',ref:'Owner',time:new Date(Date.now()-5*3600e3)}
+  ];
+
+  S.logins=[
+    {who:'Store Admin',role:'Owner',ip:'Live Session',dev:'POS Terminal',time:new Date(Date.now()-5*3600e3),ok:true},
+    {who:'Sarah Khan',role:'Manager',ip:'Branch Terminal',dev:'Back Office',time:new Date(Date.now()-4*3600e3),ok:true},
+    {who:'Bilal Ahmed',role:'Cashier',ip:'REG-02',dev:'POS PIN Pad',time:new Date(Date.now()-4*3600e3),ok:true}
+  ];
+
+  S.notifs=[
+    {ic:'alert',c:'var(--warning)',t:'Low stock: Extra Virgin Olive Oil 750ml',s:'7 units remaining (minimum 12)',go:'inventory',time:new Date(Date.now()-45*60e3),unread:true},
+    {ic:'clock',c:'var(--danger)',t:'Near expiry: Artisan Multigrain Bread',s:'Batch B1003 expires in 2 days',go:'expiry',time:new Date(Date.now()-120*60e3),unread:true},
+    {ic:'globe',c:'var(--info)',t:'New Click & Collect Order WEB-1001',s:'Zainab Tariq · 4 items',go:'omnichannel',time:new Date(Date.now()-25*60e3),unread:true}
+  ];
+
+  S.transfers=[
+    {id:'TR-0101',from:'MAIN',to:'CITY',pid:1,qty:10,status:'In transit',date:new Date(Date.now()-4*3600e3)},
+    {id:'TR-0100',from:'MAIN',to:'EXP',pid:5,qty:8,status:'Completed',date:new Date(Date.now()-2*DAY)}
+  ];
   S.zreports=[];
-  S.promotions=[];
-  S.giftcards=[];
-  S.coupons=[];
-  S.audit=[];
-  S.movements=[];
-  S.online=[];
-  S.backups=[];
+  S.backups=[
+    {id:'BK-1001',time:new Date(Date.now()-6*3600e3),type:'Automated',size:'48 records',status:'Success',dur:'1s'}
+  ];
   S.suspicious=[];
   S.waste=[];
   S.approvals=[];
-  S.logins=[];
-  S.notifs=[];
   S.held=[];
 }
 
@@ -257,14 +377,12 @@ const C=id=>S.customers.find(c=>c.id===+id);
 const isAdmin=()=>!S.user||S.user.role==='Owner';
 
 function syncLiveStats(){
-  // Recompute branch & employee sales live from S.orders
   const validOrders=S.orders.filter(o=>o.status!=='Refunded');
   S.branches.forEach(b=>{
     const bo=validOrders.filter(o=>o.branch===b.id||S.branches.length===1);
     b.rev=r2(sum(bo,o=>o.total-(o.refunded||0)));
     b.orders=bo.length;
     b.staff=S.employees.filter(e=>e.branch===b.id||e.branch==='All').length;
-    // Last 12 days trend for this branch
     b.trend=Array.from({length:12},(_,i)=>{
       const d0=new Date();d0.setHours(0,0,0,0);d0.setDate(d0.getDate()-(11-i));
       const d1=new Date(d0.getTime()+DAY);
@@ -290,13 +408,41 @@ function reviveDates(obj){
   }
   return obj;
 }
+function scrubPersonalName(str){
+  if(typeof str!=='string')return str;
+  return str.replace(/faizan\s*rizwan/gi,'Store Admin').replace(/faizan/gi,'Store Admin');
+}
 function ensureAdminAccount(){
+  // If database has 0 products (from previous blank state), auto-populate testing store data
+  if(!Array.isArray(S.products)||S.products.length===0){
+    seedInitialData(false);
+  }
   if(!Array.isArray(S.employees))S.employees=[];
-  let adm=S.employees.find(e=>e.email&&e.email.toLowerCase().includes('faizanrizwan327@'));
+  // Scrub any personal name occurrences across all collections
+  if(S.settings&&S.settings.email&&S.settings.email.toLowerCase().includes('faizan'))S.settings.email='admin@monarchpos.com';
+  S.employees.forEach(e=>{
+    if(e.name&&/faizan/i.test(e.name))e.name='Store Admin';
+    if(e.email&&/faizan/i.test(e.email))e.email='admin@monarchpos.com';
+    delete e.altEmail;
+  });
+  if(S.user){
+    if(S.user.name&&/faizan/i.test(S.user.name))S.user.name='Store Admin';
+    if(S.user.email&&/faizan/i.test(S.user.email))S.user.email='admin@monarchpos.com';
+    try{localStorage.setItem('monarch_live_user_v2',JSON.stringify(S.user))}catch(e){}
+  }
+  (S.branches||[]).forEach(b=>{if(b.manager&&/faizan/i.test(b.manager))b.manager='Store Admin'});
+  (S.registers||[]).forEach(r=>{if(r.cashier&&/faizan/i.test(r.cashier))r.cashier='Store Admin'});
+  (S.orders||[]).forEach(o=>{if(o.cashier&&/faizan/i.test(o.cashier))o.cashier='Store Admin'});
+  (S.audit||[]).forEach(a=>{if(a.who&&/faizan/i.test(a.who))a.who='Store Admin';if(a.what)a.what=scrubPersonalName(a.what)});
+  (S.movements||[]).forEach(m=>{if(m.user&&/faizan/i.test(m.user))m.user='Store Admin'});
+  (S.logins||[]).forEach(l=>{if(l.who&&/faizan/i.test(l.who))l.who='Store Admin'});
+  (S.waste||[]).forEach(w=>{if(w.user&&/faizan/i.test(w.user))w.user='Store Admin'});
+
+  let adm=S.employees.find(e=>e.role==='Owner'||(e.email&&e.email.toLowerCase()==='admin@monarchpos.com'));
   if(!adm){
     adm={
       id:1,
-      name:'Faizan Rizwan',
+      name:'Store Admin',
       role:'Owner',
       branch:'All',
       onShift:true,
@@ -306,22 +452,21 @@ function ensureAdminAccount(){
       txns:0,
       comm:0,
       last:new Date(),
-      email:'faizanrizwan327@gmail.com',
-      altEmail:'faizanrizwan327@gamil.com',
+      email:'admin@monarchpos.com',
       active:true
     };
     S.employees.unshift(adm);
   }else{
+    adm.name=scrubPersonalName(adm.name)||'Store Admin';
     adm.role='Owner';
-    adm.altEmail='faizanrizwan327@gamil.com';
     if(!adm.pin)adm.pin='1234';
     if(!adm.password)adm.password='admin123';
   }
   if(!S.branches||!S.branches.length){
-    S.branches=[{id:'MAIN',name:'Main Branch',city:'Head Office',manager:'Faizan Rizwan',staff:1,rev:0,target:500000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}];
+    S.branches=[{id:'MAIN',name:'Main Flagship Mart',city:'Head Office',manager:'Store Admin',staff:1,rev:0,target:250000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}];
   }
   if(!S.registers||!S.registers.length){
-    S.registers=[{id:'REG-01',branch:S.branches[0].id,name:'Main Counter 1',open:true,cashier:'Faizan Rizwan',float:0,cash:0,cin:0,cout:0,card:0,digital:0,opened:new Date()}];
+    S.registers=[{id:'REG-01',branch:S.branches[0].id,name:'Main Counter 1',open:true,cashier:'Store Admin',float:15000,cash:0,cin:0,cout:0,card:0,digital:0,opened:new Date()}];
   }
 }
 function saveState(){
@@ -340,9 +485,8 @@ function saveState(){
   }catch(e){}
 }
 function loadState(){
-  // Remove old v1 demo storage if present
   try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1')}catch(e){}
-  seedInitialData();
+  seedInitialData(false);
   try{
     const raw=localStorage.getItem('monarch_live_state_v2');
     if(raw){
@@ -353,6 +497,11 @@ function loadState(){
     if(u)S.user=JSON.parse(u);
   }catch(e){}
   ensureAdminAccount();
+  // Auto-sign in Store Admin for smooth client testing if no user session yet
+  if(!S.user&&S.employees[0]){
+    const emp=S.employees[0];
+    S.user={id:emp.id,name:emp.name,role:emp.role,branch:emp.branch,email:emp.email,pin:emp.pin};
+  }
   syncLiveStats();
 
   fetch('/api/state').then(r=>r.ok?r.json():null).then(d=>{
@@ -360,15 +509,21 @@ function loadState(){
       window._cloudConnected=true;
       S.cloudStatus=d.mongo?'MongoDB Atlas · Connected':'Server API · Connected';
       const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
-      if(d.state&&Array.isArray(d.state.employees)){
+      if(d.state&&Array.isArray(d.state.products)&&d.state.products.length>0){
         const snap=reviveDates(d.state);
         PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
         ensureAdminAccount();
         syncLiveStats();
+        if(window.updateUserChip)updateUserChip();
         if(window.updateBranchSelect)updateBranchSelect();
+        if(window.updateBell)updateBell();
         if(window.refresh)refresh();
       }else{
         saveState();
+        if(window.updateUserChip)updateUserChip();
+        if(window.updateBranchSelect)updateBranchSelect();
+        if(window.updateBell)updateBell();
+        if(window.refresh)refresh();
       }
     }
   }).catch(()=>{
@@ -376,13 +531,15 @@ function loadState(){
     const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
   });
 }
-function resetDemoState(){
+function resetDemoState(emptyOnly=false){
   localStorage.removeItem('monarch_live_state_v2');
-  seedInitialData();
-  fetch('/api/state',{method:'DELETE'}).catch(()=>{});
+  seedInitialData(emptyOnly);
+  syncLiveStats();
   saveState();
+  if(window.updateUserChip)updateUserChip();
   if(window.updateBranchSelect)updateBranchSelect();
-  if(window.toast)toast('All data cleared — fresh live workspace ready','info');
+  if(window.updateBell)updateBell();
+  if(window.toast)toast(emptyOnly?'All data wiped — clean empty workspace ready':'Sample store testing data loaded & synced','info');
   if(window.refresh)refresh();
 }
 loadState();
