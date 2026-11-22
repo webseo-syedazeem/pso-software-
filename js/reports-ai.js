@@ -280,12 +280,57 @@ function createAllPO(){
   toast(`${Object.keys(by).length} draft purchase order(s) created`);
   S.pur='orders';go('purchasing');
 }
+let _aiT=null,_ovT1=null,_ovT2=null;
 function typeBrief(){
+  if(_aiT)clearInterval(_aiT);
   const el=$('#ai-brief');if(!el)return;
+  const h=new Date().getHours();
+  const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  const name=(S.user?S.user.name:'Faizan Rizwan').split(' ')[0];
   const todayRev=sum(sessionToday(),o=>o.total-(o.refunded||0));
-  const txt=`Hello ${(S.user?S.user.name:'Faizan').split(' ')[0]}. Your live workspace currently has ${S.products.length} products, ${S.customers.length} customers, and ${S.orders.length} total orders (${money(todayRev)} today). ${reorders().length} products are below minimum stock.`;
+  const txt=`${greet}, ${name}. Your live workspace currently has ${S.products.length} products, ${S.customers.length} customers, and ${S.orders.length} total orders (${money(todayRev)} today). ${reorders().length} products are below minimum stock.`;
+  el.textContent='';
+  el.classList.add('typing');
   let i=0;
-  const t=setInterval(()=>{if(!document.body.contains(el))return clearInterval(t);el.textContent=txt.slice(0,++i);if(i>=txt.length){clearInterval(t);setTimeout(()=>el.classList.remove('typing'),1500)}},14);
+  _aiT=setInterval(()=>{if(!document.body.contains(el))return clearInterval(_aiT);el.textContent=txt.slice(0,++i);if(i>=txt.length){clearInterval(_aiT);setTimeout(()=>el.classList.remove('typing'),1500)}},16);
+}
+function typeOverview(){
+  if(_ovT1)clearInterval(_ovT1);
+  if(_ovT2)clearInterval(_ovT2);
+  const gEl=$('#ov-greet');
+  const pEl=$('#ov-pulse');
+  const h=new Date().getHours();
+  const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  const name=(S.user?S.user.name:'Faizan Rizwan').split(' ')[0];
+  const gTxt=`${greet}, ${name}`;
+  const todayOrds=sessionToday();
+  const pTxt=`✦ ${todayOrds.length} sale${todayOrds.length===1?'':'s'} recorded today · ${S.products.length} products & ${S.customers.length} customers live on ${S.cloudStatus}`;
+  if(gEl){
+    gEl.textContent='';
+    gEl.classList.add('typing');
+    let i=0;
+    _ovT1=setInterval(()=>{
+      if(!document.body.contains(gEl))return clearInterval(_ovT1);
+      gEl.textContent=gTxt.slice(0,++i);
+      if(i>=gTxt.length){
+        clearInterval(_ovT1);
+        setTimeout(()=>gEl.classList.remove('typing'),600);
+      }
+    },26);
+  }
+  if(pEl){
+    pEl.textContent='';
+    pEl.classList.add('typing');
+    let j=0;
+    _ovT2=setInterval(()=>{
+      if(!document.body.contains(pEl))return clearInterval(_ovT2);
+      pEl.textContent=pTxt.slice(0,++j);
+      if(j>=pTxt.length){
+        clearInterval(_ovT2);
+        setTimeout(()=>pEl.classList.remove('typing'),1500);
+      }
+    },15);
+  }
 }
 
 /* ================= COMMAND PALETTE & NOTIFICATIONS ================= */
@@ -422,7 +467,7 @@ function completeSignIn(emp,dev='POS Terminal'){
   const ov=$('#auth-ov');
   if(ov){ov.classList.add('out');setTimeout(()=>$('#auth-root').innerHTML='',320)}
   toast(`Welcome, <b>${esc(emp.name)}</b> (${emp.role})`);
-  refresh();
+  render(S.page,true);
 }
 function lockPOS(){
   $('#pop-root').innerHTML='';
@@ -481,7 +526,16 @@ function openUserMenu(e){
 }
 
 /* ================= INIT ================= */
-const _render=render;render=function(id,k){_render(id,k);if(id==='ai')setTimeout(typeBrief,500)};
+const _render=render;render=function(id,k){
+  _render(id,k);
+  if(id==='overview')setTimeout(typeOverview,120);
+  if(id==='ai')setTimeout(typeBrief,180);
+};
+const _refresh=refresh;refresh=function(){
+  _refresh();
+  if(S.page==='overview')setTimeout(typeOverview,80);
+  if(S.page==='ai')setTimeout(typeBrief,100);
+};
 
 (function init(){
   try{
