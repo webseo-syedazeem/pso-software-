@@ -520,7 +520,6 @@ async function authKey(k){
       const r=await apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'pin',pin:AUTH.pin})});
       const d=await r.json().catch(()=>null);
       if(r.ok&&d&&d.ok&&d.user){
-        if(d.token)setSessionToken(d.token);
         _authBusy=false;
         setTimeout(()=>completeSignIn(d.user,'POS PIN Pad'),120);
         return;
@@ -546,7 +545,6 @@ async function submitEmailAuth(){
     const d=await r.json().catch(()=>null);
     _authBusy=false;
     if(r.ok&&d&&d.ok&&d.user){
-      if(d.token)setSessionToken(d.token);
       completeSignIn(d.user,'Email & Password');
       return;
     }
@@ -582,7 +580,6 @@ function signOutUser(){
   audit('login','Signed out',prev);
   apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'logout'})}).catch(()=>{});
   S.user=null;
-  setSessionToken('');
   AUTH.mode='email';
   openAuthScreen(false);
 }
@@ -664,7 +661,7 @@ const _refresh=refresh;refresh=function(){
       updateUserChip();
       syncCloudState();
     }else{
-      S.user=null;setSessionToken('');
+      S.user=null;
       openAuthScreen(false);
     }
   }catch{

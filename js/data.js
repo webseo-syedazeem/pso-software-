@@ -95,7 +95,7 @@ const fmtDate=d=>d?new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'
 const initials=n=>String(n||'U').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
 const AVC=['linear-gradient(135deg,#8b7ffa,#5b4cf0)','linear-gradient(135deg,#14b8a6,#0e9fe0)','linear-gradient(135deg,#f59e0b,#e5479a)','linear-gradient(135deg,#0fb37c,#14b8a6)','linear-gradient(135deg,#e9445a,#f59e0b)','linear-gradient(135deg,#0e9fe0,#5b4cf0)'];
 const avc=n=>AVC[[...String(n||'U')].reduce((a,c)=>a+c.charCodeAt(0),0)%AVC.length];
-const avatar=(n,s=36)=>`<div class="av" style="width:${s}px;height:${s}px;background:${avc(n)};font-size:${s*.33}px">${initials(n)}</div>`;
+const avatar=(n,s=36)=>`<div class="av" style="width:${s}px;height:${s}px;background:${avc(n)};font-size:${s*.33}px">${esc(initials(n))}</div>`;
 
 /* ================= CATEGORIES & LIVE STATE (ZERO DUMMY DATA) ================= */
 const CATS={
@@ -378,13 +378,104 @@ const C=id=>S.customers.find(c=>c.id===+id);
 const isAdmin=()=>!!(S.user&&S.user.role==='Owner');
 const hasPerm=k=>{if(!S.user)return false;if(S.user.role==='Owner')return true;return (S.matrix[S.user.role]||'').split(' ').includes(k)};
 
-function getSessionToken(){try{return sessionStorage.getItem('monarch_sess_token')||''}catch{return ''}}
-function setSessionToken(t){try{if(t)sessionStorage.setItem('monarch_sess_token',t);else sessionStorage.removeItem('monarch_sess_token')}catch{}}
+// Authentication uses HttpOnly SameSite=Strict cookie only — zero tokens stored in JS/sessionStorage.
 function apiFetch(url,opts={}){
   const headers={'Content-Type':'application/json',...(opts.headers||{})};
-  const tok=getSessionToken();
-  if(tok)headers['Authorization']='Bearer '+tok;
   return fetch(url,{...opts,headers,credentials:'same-origin'});
+}
+
+function mergeByKey(a,b,keyFn){
+  const seen=new Set(),out=[];
+  for(const item of [...(a||[]),...(b||[])]){
+    if(!item||typeof item!=='object')continue;
+    const k=keyFn(item);
+    if(!seen.has(k)){seen.add(k);out.push(item)}
+  }
+  return out;
+}
+
+function mergeServerWithLocal(serverSnap,localSnap){
+  const merged=structuredClone(serverSnap);
+  const srvOrders=merged.orders||[];
+  const srvOrdById=new Map(srvOrders.map(o=>[o.id,o]));
+  const srvOrdUids=new Set(srvOrders.map(o=>o.uid).filter(Boolean));
+  const srvOrdIds=new Set(srvOrders.map(o=>o.id));
+  const srvInvs=new Set(srvOrders.map(o=>o.inv));
+
+  const isSameOrder=(a,b)=>{
+    if(!a||!b)return false;
+    if(a.uid&&b.uid)return a.uid===b.uid;
+    return a.id===b.id&&a.cashier===b.cashier&&Math.abs((+a.total||0)-(+b.total||0))<.01&&a.reg===b.reg&&Math.abs(new Date(a.time||0)-new Date(b.time||0))<2000;
+  };
+
+  // Detect genuinely new local orders — EVEN IF another till simultaneously grabbed the same ORD-XXXX / INV-XXXX!
+  const localNewOrders=(localSnap.orders||[]).filter(o=>{
+    if(!o||!o.id)return false;
+    if(o.uid&&srvOrdUids.has(o.uid))return false;
+    const existing=srvOrdById.get(o.id);
+    if(!existing)return true;
+    return !isSameOrder(o,existing);
+  }).map(o=>structuredClone(o));
+
+  // Re-sequence any colliding order IDs and invoice numbers so two registers never overwrite or duplicate each other
+  const extractN=v=>{const m=String(v||'').match(/(\d+)$/);return m?parseInt(m[1],10):1000};
+  let nextOrd=Math.max(
+    1001,
+    ...srvOrders.map(o=>extractN(o.id)+1),
+    ...(localSnap.orders||[]).map(o=>extractN(o.id)+1)
+  );
+  let nextInv=Math.max(
+    (merged.settings&&merged.settings.nextInv)||1001,
+    ...srvOrders.map(o=>extractN(o.inv)+1),
+    ...(localSnap.orders||[]).map(o=>extractN(o.inv)+1)
+  );
+  const prefix=(merged.settings&&merged.settings.invPrefix)||'INV-';
+  localNewOrders.forEach(o=>{
+    if(srvOrdIds.has(o.id)){
+      o.id='ORD-'+(nextOrd++);
+    }
+    srvOrdIds.add(o.id);
+    if(srvInvs.has(o.inv)){
+      o.inv=prefix+(nextInv++);
+    }
+    srvInvs.add(o.inv);
+    // Apply this local sale's stock & sold30 impact onto the server's latest product inventory
+    (o.items||[]).forEach(it=>{
+      const sp=(merged.products||[]).find(p=>p.id===it.id);
+      if(sp){
+        sp.stock=Math.max(0,(sp.stock||0)-(it.qty||0));
+        sp.sold30=(sp.sold30||0)+(it.qty||0);
+      }
+    });
+    // Also apply this local sale's tender impact onto the matching register
+    const reg=(merged.registers||[]).find(r=>r.id===o.reg);
+    if(reg){
+      (o.pays||[]).forEach(p=>{
+        if(p.method==='Cash')reg.cash=r2((reg.cash||0)+(+p.amount||0));
+        else if(p.method==='Card')reg.card=r2((reg.card||0)+(+p.amount||0));
+        else if(p.method==='Digital wallet'||p.method==='Bank transfer')reg.digital=r2((reg.digital||0)+(+p.amount||0));
+      });
+    }
+  });
+
+  if(localNewOrders.length){
+    merged.orders=[...localNewOrders,...(merged.orders||[])];
+  }
+  if(merged.settings){
+    merged.settings.nextInv=Math.max(merged.settings.nextInv||1001,nextInv);
+  }
+
+  // Preserve append-only logs, held sales, movements, zreports & newly added customers
+  merged.audit=mergeByKey(localSnap.audit,merged.audit,x=>`${x.time}|${x.who}|${x.what}|${x.ref}`).slice(0,600);
+  merged.movements=mergeByKey(localSnap.movements,merged.movements,x=>`${x.time}|${x.pid}|${x.qty}|${x.reason}`).slice(0,800);
+  merged.logins=mergeByKey(localSnap.logins,merged.logins,x=>`${x.time}|${x.who}|${x.dev}|${x.ok}`).slice(0,300);
+  merged.zreports=mergeByKey(localSnap.zreports,merged.zreports,x=>`${x.time}|${x.reg}|${x.who}|${x.counted}`).slice(0,300);
+  merged.held=mergeByKey(localSnap.held,merged.held,x=>x.id||`${x.label}|${x.time}`);
+  merged.notifs=mergeByKey(localSnap.notifs,merged.notifs,x=>`${x.time}|${x.t}`).slice(0,100);
+  const srvCustIds=new Set((merged.customers||[]).map(c=>c.id));
+  const newCusts=(localSnap.customers||[]).filter(c=>c&&!srvCustIds.has(c.id));
+  if(newCusts.length)merged.customers=[...newCusts,...(merged.customers||[])];
+  return{merged,preservedSales:localNewOrders.length};
 }
 
 function syncLiveStats(){
@@ -469,50 +560,62 @@ function ensureAdminAccount(){
   }
 }
 
-function saveState(force=false){
+function saveState(force=false,retry=0){
   try{
     syncLiveStats();
     const snap={};
     PERSIST_KEYS.forEach(k=>snap[k]=S[k]);
-    // Never write temporary newPassword/newPin into browser localStorage
     const cacheSnap=JSON.parse(JSON.stringify(snap));
     (cacheSnap.employees||[]).forEach(e=>{delete e.newPassword;delete e.newPin;delete e.password;delete e.pin});
     localStorage.setItem('monarch_live_state_v2',JSON.stringify(cacheSnap));
-    if(!S.user)return;
+    if(!S.user)return Promise.resolve({ok:false});
     const payload={...snap,_rev:S._rev,_force:!!force};
-    // Clear one-time credential update fields from memory immediately after preparing payload
     (S.employees||[]).forEach(e=>{delete e.newPassword;delete e.newPin});
-    apiFetch('/api/state',{method:'POST',body:JSON.stringify(payload)}).then(async r=>{
+    return apiFetch('/api/state',{method:'POST',body:JSON.stringify(payload)}).then(async r=>{
       const d=await r.json().catch(()=>null);
       if(r.status===409&&d&&d.conflict&&d.state){
+        // Merge server's newer state WITH our local sales/held/logs so NO sale is ever lost, then retry save!
         S._rev=d.rev||S._rev;
-        const fresh=reviveDates(d.state);
-        PERSIST_KEYS.forEach(k=>{if(fresh[k]!==undefined)S[k]=fresh[k]});
+        const freshServer=reviveDates(d.state);
+        const {merged,preservedSales}=mergeServerWithLocal(freshServer,snap);
+        PERSIST_KEYS.forEach(k=>{if(merged[k]!==undefined)S[k]=merged[k]});
         ensureAdminAccount();syncLiveStats();
-        if(window.toast)toast('Synced newer changes from another register','info');
-        if(window.refresh)refresh();
-        return;
+        if(retry<3){
+          return saveState(false,retry+1);
+        }
+        if(window.toast)toast(preservedSales?'Merged concurrent register sale — synced cleanly':'Synced newer changes from another register','info');
+        if(window.render)render(S.page,true);
+        return{ok:false,conflict:true};
+      }
+      if(r.status===400&&d&&d.error){
+        if(window.toast)toast(esc(d.error),'err');
+        syncCloudState();
+        return{ok:false,error:d.error};
       }
       if(r.status===401){
-        S.user=null;setSessionToken('');
+        S.user=null;
         if(window.openAuthScreen)openAuthScreen(false);
-        return;
+        if(window.toast)toast('Session expired or revoked — please sign in again','warn');
+        return{ok:false,unauth:true};
       }
       if(d&&d.ok){
         window._cloudConnected=true;
         if(typeof d.rev==='number')S._rev=d.rev;
+        if(typeof d.nextInv==='number'&&S.settings)S.settings.nextInv=Math.max(S.settings.nextInv||1001,d.nextInv);
         S.cloudStatus=d.mongo?'MongoDB Atlas · Live Synced':'Server API · Synced';
         const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
+        return{ok:true,rev:d.rev};
       }
-    }).catch(()=>{});
-  }catch(e){}
+      return{ok:false};
+    }).catch(()=>({ok:false}));
+  }catch(e){return Promise.resolve({ok:false})}
 }
 
 function syncCloudState(){
   if(!S.user)return Promise.resolve();
   return apiFetch('/api/state').then(async r=>{
     if(r.status===401){
-      S.user=null;setSessionToken('');
+      S.user=null;
       if(window.openAuthScreen)openAuthScreen(false);
       return;
     }
@@ -527,13 +630,13 @@ function syncCloudState(){
         PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
         ensureAdminAccount();
         syncLiveStats();
-      }else{
-        saveState(true);
+      }else if(isAdmin()){
+        await saveState(true);
       }
       if(window.updateUserChip)updateUserChip();
       if(window.updateBranchSelect)updateBranchSelect();
       if(window.updateBell)updateBell();
-      if(window.refresh)refresh();
+      if(window.render)render(S.page,true);
     }
   }).catch(()=>{
     S.cloudStatus='Offline Mode · Local Persisted';
@@ -542,7 +645,7 @@ function syncCloudState(){
 }
 
 function loadState(){
-  try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1');localStorage.removeItem('monarch_live_user_v2')}catch(e){}
+  try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1');localStorage.removeItem('monarch_live_user_v2');sessionStorage.removeItem('monarch_sess_token')}catch(e){}
   seedInitialData(false);
   try{
     const raw=localStorage.getItem('monarch_live_state_v2');

@@ -1,16 +1,17 @@
-// Vercel Serverless Function — Authentication & Manager PIN Verification (/api/auth)
+// Vercel Serverless Function — Hardened Authentication, Manager PIN & Gift Card Verification (/api/auth)
 const {
-  hashSecret,
-  safeEqualHex,
+  verifySecret,
+  getSigningSecret,
   signToken,
-  verifySession,
+  verifyActiveSession,
   setSessionCookie,
   clearSessionCookie,
   setSecurityHeaders,
   getClientIp,
   checkRateLimit,
   loadWorkspaceDoc,
-  getEffectiveEmployees
+  getEffectiveEmployees,
+  maskGiftCode
 } = require('./_security');
 
 module.exports = async function handler(req, res) {
@@ -18,9 +19,15 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    const { db, doc } = await loadWorkspaceDoc();
+    const secret = await getSigningSecret(db);
+
     if (req.method === 'GET') {
-      const sess = verifySession(req);
-      if (!sess) return res.status(401).json({ ok: false, error: 'Not authenticated' });
+      const sess = verifyActiveSession(req, doc, secret);
+      if (!sess) {
+        clearSessionCookie(req, res);
+        return res.status(401).json({ ok: false, error: 'Not authenticated' });
+      }
       return res.status(200).json({ ok: true, user: sess });
     }
 
@@ -39,18 +46,21 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === 'me') {
-      const sess = verifySession(req);
-      if (!sess) return res.status(401).json({ ok: false, error: 'Not authenticated' });
+      const sess = verifyActiveSession(req, doc, secret);
+      if (!sess) {
+        clearSessionCookie(req, res);
+        return res.status(401).json({ ok: false, error: 'Not authenticated' });
+      }
       return res.status(200).json({ ok: true, user: sess });
     }
 
     const ip = getClientIp(req);
-    if (!checkRateLimit(ip, 15, 5 * 60 * 1000)) {
-      return res.status(429).json({ ok: false, error: 'Too many authentication attempts. Try again in 5 minutes.' });
+    const ipAllowed = await checkRateLimit(db, 'ip:' + ip, 12, 5 * 60 * 1000);
+    if (!ipAllowed) {
+      return res.status(429).json({ ok: false, error: 'Too many attempts from this device. Please wait 5 minutes.' });
     }
 
-    const { doc } = await loadWorkspaceDoc();
-    const employees = getEffectiveEmployees(doc);
+    const employees = getEffectiveEmployees(doc, secret);
 
     if (action === 'login') {
       const email = String(body.email || '').trim().toLowerCase();
@@ -58,15 +68,20 @@ module.exports = async function handler(req, res) {
       if (!email || !password) {
         return res.status(400).json({ ok: false, error: 'Email and password are required' });
       }
+      // Also rate-limit by target account email (blocks distributed/spoofed IP brute force)
+      const acctAllowed = await checkRateLimit(db, 'acct:' + email, 10, 5 * 60 * 1000);
+      if (!acctAllowed) {
+        return res.status(429).json({ ok: false, error: 'Account temporarily locked due to failed attempts. Wait 5 minutes.' });
+      }
       const emp = employees.find(e => e.email && e.email.toLowerCase() === email && e.active !== false);
-      const pwHash = hashSecret(password);
-      if (!emp || !safeEqualHex(pwHash, emp.passwordHash)) {
+      if (!emp || !verifySecret(password, emp.passwordHash)) {
         return res.status(401).json({ ok: false, error: 'Invalid email or password' });
       }
       const user = { id: emp.id, name: emp.name, role: emp.role, branch: emp.branch || 'All', email: emp.email };
-      const token = signToken(user);
+      const token = signToken(emp, secret);
+      // Session token is ONLY delivered via HttpOnly SameSite=Strict cookie (never exposed to browser JS)
       setSessionCookie(req, res, token);
-      return res.status(200).json({ ok: true, user, token });
+      return res.status(200).json({ ok: true, user });
     }
 
     if (action === 'pin') {
@@ -74,26 +89,52 @@ module.exports = async function handler(req, res) {
       if (pin.length !== 4) {
         return res.status(400).json({ ok: false, error: 'A 4-digit PIN is required' });
       }
-      const pHash = hashSecret(pin);
-      const emp = employees.find(e => e.active !== false && safeEqualHex(pHash, e.pinHash));
+      // Global PIN-pad rate-limit per 5 minutes to defeat 4-digit brute force even across IPs
+      const pinAllowed = await checkRateLimit(db, 'pin_pad:' + ip, 8, 5 * 60 * 1000);
+      if (!pinAllowed) {
+        return res.status(429).json({ ok: false, error: 'Too many PIN attempts. Try again in 5 minutes.' });
+      }
+      const emp = employees.find(e => e.active !== false && verifySecret(pin, e.pinHash));
       if (!emp) {
         return res.status(401).json({ ok: false, error: 'Invalid 4-digit POS PIN' });
       }
       const user = { id: emp.id, name: emp.name, role: emp.role, branch: emp.branch || 'All', email: emp.email };
-      const token = signToken(user);
+      const token = signToken(emp, secret);
       setSessionCookie(req, res, token);
-      return res.status(200).json({ ok: true, user, token });
+      return res.status(200).json({ ok: true, user });
     }
 
     if (action === 'verifyManagerPin') {
-      const sess = verifySession(req);
+      const sess = verifyActiveSession(req, doc, secret);
       if (!sess) return res.status(401).json({ ok: false, error: 'Authentication required' });
       const pin = String(body.pin || '').replace(/\D/g, '');
       if (pin.length !== 4) return res.status(400).json({ ok: false, error: '4-digit PIN required' });
-      const pHash = hashSecret(pin);
-      const mgr = employees.find(e => e.active !== false && (e.role === 'Owner' || e.role === 'Manager') && safeEqualHex(pHash, e.pinHash));
+      const mgr = employees.find(e => e.active !== false && (e.role === 'Owner' || e.role === 'Manager') && verifySecret(pin, e.pinHash));
       if (!mgr) return res.status(403).json({ ok: false, error: 'Invalid Manager/Admin PIN' });
       return res.status(200).json({ ok: true, approver: mgr.name, role: mgr.role });
+    }
+
+    // Server-side gift card lookup so cashiers never receive the full list of unmasked gift card codes
+    if (action === 'checkGiftCard') {
+      const sess = verifyActiveSession(req, doc, secret);
+      if (!sess) return res.status(401).json({ ok: false, error: 'Authentication required' });
+      const code = String(body.code || '').trim().toUpperCase();
+      if (!code) return res.status(400).json({ ok: false, error: 'Enter a gift card code' });
+      const cards = (doc && doc.state && Array.isArray(doc.state.giftcards)) ? doc.state.giftcards : [];
+      const card = cards.find(g => String(g.code || '').toUpperCase() === code && g.active !== false);
+      if (!card) return res.status(404).json({ ok: false, error: 'Gift card not found' });
+      if (card.exp && new Date(card.exp) < new Date()) {
+        return res.status(400).json({ ok: false, error: 'Gift card has expired' });
+      }
+      return res.status(200).json({
+        ok: true,
+        card: {
+          maskedCode: maskGiftCode(card.code),
+          bal: Number(card.bal) || 0,
+          exp: card.exp || null,
+          to: card.to || 'Customer'
+        }
+      });
     }
 
     return res.status(400).json({ ok: false, error: 'Unknown auth action' });

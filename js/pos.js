@@ -210,7 +210,7 @@ function resumeHeld(id){
 }
 function deleteHeld(id){
   const h=S.held.find(x=>x.id===id);if(!h)return;
-  const doDel=()=>confirmBox('Delete held sale?',h.paid?`${money(h.paid)} was already collected from ${esc(h.label)}. Return that money to the customer before deleting — this is logged in the audit trail.`:`${esc(h.label)} · ${h.count} items will be released back to stock.`,()=>{S.held=S.held.filter(x=>x!==h);audit('void',`Held sale deleted · ${h.id} · ${h.label}${h.paid?' · '+money(h.paid)+' had been collected':''}`,money(h.total));drawCart();posFilter();toast('Held sale deleted','info')},{danger:true,label:'Delete'});
+  const doDel=()=>confirmBox('Delete held sale?',h.paid?`${money(h.paid)} was already collected from ${h.label}. Return that money to the customer before deleting — this is logged in the audit trail.`:`${h.label} · ${h.count} items will be released back to stock.`,()=>{S.held=S.held.filter(x=>x!==h);audit('void',`Held sale deleted · ${h.id} · ${h.label}${h.paid?' · '+money(h.paid)+' had been collected':''}`,money(h.total));drawCart();posFilter();toast('Held sale deleted','info')},{danger:true,label:'Delete'});
   closeModal();
   setTimeout(()=>{if(!hasPerm('void'))pinPrompt('Manager approval required to delete held sale',doDel);else doDel()},220);
 }
@@ -240,7 +240,7 @@ async function pinIn(el,i){
     }
   }
 }
-function itemDisc(id){const it=S.cart.items.find(x=>x.id===id),p=P(id);modal({title:'Item discount',sub:`${esc(p.name)} · ${money(p.price)} × ${it.qty}`,size:'sm',icon:'percent',body:`<div class="quick" style="margin:0 0 12px">${[0,5,10,15,20,25,50].map(v=>`<button class="chip" onclick="$('#idv').value=${v}">${v?v+'%':'None'}</button>`).join('')}</div><label class="field">Discount percentage<input class="input" id="idv" type="number" min="0" max="100" value="${it.disc||0}"></label><p class="xs muted" style="margin-top:10px">Discounts above ${S.settings.discountAlert}% require manager authorisation.</p>`,foot:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="applyItemDisc(${id})">Apply</button>`})}
+function itemDisc(id){const it=S.cart.items.find(x=>x.id===id),p=P(id);modal({title:'Item discount',sub:`${p.name} · ${money(p.price)} × ${it.qty}`,size:'sm',icon:'percent',body:`<div class="quick" style="margin:0 0 12px">${[0,5,10,15,20,25,50].map(v=>`<button class="chip" onclick="$('#idv').value=${v}">${v?v+'%':'None'}</button>`).join('')}</div><label class="field">Discount percentage<input class="input" id="idv" type="number" min="0" max="100" value="${it.disc||0}"></label><p class="xs muted" style="margin-top:10px">Discounts above ${S.settings.discountAlert}% require manager authorisation.</p>`,foot:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="applyItemDisc(${id})">Apply</button>`})}
 function applyItemDisc(id){
   const v=+$('#idv').value;if(!(v>=0&&v<=100))return toast('Enter 0–100%','warn');
   const go2=()=>{S.cart.items.find(x=>x.id===id).disc=v;drawCart();toast(v?`${v}% item discount applied`:'Discount removed')};
@@ -289,29 +289,47 @@ function openPay(){
   drawPay();
 }
 const payRem=()=>r2(PAY.total-PAY.redeem-sum(PAY.pays,p=>p.amount));
-function drawPay(){const rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null,change=rem<0?-rem:0;const def=Math.max(0,rem);const ptsVal=cu?r2(cu.points*S.settings.pointValue):0;$('#pay-b').innerHTML=`<div class="due"><div><small>AMOUNT DUE</small><b>${money(PAY.total)}</b></div><div style="text-align:right"><small>${change?'CHANGE DUE':'REMAINING'}</small><b style="color:${change?'#d5fd79':rem<=0?'#7ef0c4':'#fff'}">${money(change||Math.max(0,rem))}</b></div></div><div class="pm-grid">${METHODS.map(([m,i])=>`<button class="pm ${PAY.method===m?'on':''}" onclick="PAY.method='${m}';drawPay()">${ic(i,20)}${m}</button>`).join('')}</div><div class="fgrid" style="margin-top:16px">${PAY.method==='Gift card'?`<label class="field">Gift card code<input class="input" id="gc-code" placeholder="GC-XXXX-XXXX"></label>`:''}<label class="field ${PAY.method==='Gift card'?'':'full'}">Amount (${PAY.method})<div class="row"><input class="input num" id="pay-amt" type="number" step=".01" value="${def.toFixed(2)}" onkeydown="if(event.key==='Enter')addPay()"><button class="btn pri" onclick="addPay()" style="height:42px">${ic('plus',16,2.4)} Add</button></div></label></div>${PAY.method==='Cash'?`<div class="quick">${[def,Math.ceil(def/100)*100,Math.ceil(def/500)*500,Math.ceil(def/1000)*1000,5000].filter((v,i,a)=>v>0&&a.indexOf(v)===i).map(v=>`<button class="chip" onclick="$('#pay-amt').value=${v.toFixed(2)};addPay()">${money(v)}</button>`).join('')}</div>`:''}${PAY.method==='On account'?`<p class="xs muted" style="margin-top:10px">${cu?`Available credit: <b>${money(Math.max(0,cu.limit-cu.credit-sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount)))}</b> of ${money(cu.limit)} limit`:'⚠ Attach a customer to charge to their account.'}</p>`:''}${cu&&cu.points>=10?`<div class="alert" style="--c:var(--pink);margin-top:14px"><div class="fic" style="--c:var(--pink)">${ic('star',16)}</div><div style="flex:1"><b>Redeem loyalty points</b><small>${num(cu.points)} pts available · worth ${money(ptsVal)}</small></div><label class="switch"><input type="checkbox" ${PAY.redeem?'checked':''} onchange="PAY.redeem=this.checked?Math.min(${ptsVal},r2(PAY.total-sum(PAY.pays,p=>p.amount))):0;drawPay()"><span></span></label></div>`:''}${PAY.pays.length?`<div class="sec-t">Payments taken</div>${PAY.pays.map((p,i)=>`<div class="paid-line">${ic(payIc[p.method],16)} ${esc(p.method)}${p.ref?` <span class="xs muted">${esc(p.ref)}</span>`:''}<b class="num">${money(p.amount)}</b><button onclick="PAY.pays.splice(${i},1);drawPay()" class="muted">${ic('x',14)}</button></div>`).join('')}`:''}${PAY.redeem?`<div class="paid-line" style="color:var(--pink)">${ic('star',16)} Points redeemed <b>${money(PAY.redeem)}</b></div>`:''}`;$('#pay-done').disabled=rem>.005;$('#pay-done').innerHTML=rem>.005?`Remaining ${money(rem)}`:`${ic('check',16,2.4)} Complete sale${change?' · change '+money(change):''}`;const a=$('#pay-amt');a&&setTimeout(()=>a.select(),30)}
-function addPay(){
+function drawPay(){const rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null,change=rem<0?-rem:0;const def=Math.max(0,rem);const ptsVal=cu?r2(cu.points*S.settings.pointValue):0;$('#pay-b').innerHTML=`<div class="due"><div><small>AMOUNT DUE</small><b>${money(PAY.total)}</b></div><div style="text-align:right"><small>${change?'CHANGE DUE':'REMAINING'}</small><b style="color:${change?'#d5fd79':rem<=0?'#7ef0c4':'#fff'}">${money(change||Math.max(0,rem))}</b></div></div><div class="pm-grid">${METHODS.map(([m,i])=>`<button class="pm ${PAY.method===m?'on':''}" onclick="PAY.method='${m}';drawPay()">${ic(i,20)}${m}</button>`).join('')}</div><div class="fgrid" style="margin-top:16px">${PAY.method==='Gift card'?`<label class="field">Gift card code<input class="input" id="gc-code" placeholder="GC-XXXX-XXXX"></label>`:''}<label class="field ${PAY.method==='Gift card'?'':'full'}">Amount (${PAY.method})<div class="row"><input class="input num" id="pay-amt" type="number" step=".01" value="${def.toFixed(2)}" onkeydown="if(event.key==='Enter')addPay()"><button class="btn pri" onclick="addPay()" style="height:42px">${ic('plus',16,2.4)} Add</button></div></label></div>${PAY.method==='Cash'?`<div class="quick">${[def,Math.ceil(def/100)*100,Math.ceil(def/500)*500,Math.ceil(def/1000)*1000,5000].filter((v,i,a)=>v>0&&a.indexOf(v)===i).map(v=>`<button class="chip" onclick="$('#pay-amt').value=${v.toFixed(2)};addPay()">${money(v)}</button>`).join('')}</div>`:''}${PAY.method==='On account'?`<p class="xs muted" style="margin-top:10px">${cu?`Available credit: <b>${money(Math.max(0,cu.limit-cu.credit-sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount)))}</b> of ${money(cu.limit)} limit`:'⚠ Attach a customer to charge to their account.'}</p>`:''}${cu&&cu.points>=10?`<div class="alert" style="--c:var(--pink);margin-top:14px"><div class="fic" style="--c:var(--pink)">${ic('star',16)}</div><div style="flex:1"><b>Redeem loyalty points</b><small>${num(cu.points)} pts available · worth ${money(ptsVal)}</small></div><label class="switch"><input type="checkbox" ${PAY.redeem?'checked':''} onchange="PAY.redeem=this.checked?Math.min(${ptsVal},r2(PAY.total-sum(PAY.pays,p=>p.amount))):0;drawPay()"><span></span></label></div>`:''}${PAY.pays.length?`<div class="sec-t">Payments taken</div>${PAY.pays.map((p,i)=>`<div class="paid-line">${ic(payIc[p.method],16)} ${esc(p.method)}${p.maskedRef||p.ref?` <span class="xs muted">${esc(p.maskedRef||p.ref)}</span>`:''}<b class="num">${money(p.amount)}</b><button onclick="PAY.pays.splice(${i},1);drawPay()" class="muted">${ic('x',14)}</button></div>`).join('')}`:''}${PAY.redeem?`<div class="paid-line" style="color:var(--pink)">${ic('star',16)} Points redeemed <b>${money(PAY.redeem)}</b></div>`:''}`;$('#pay-done').disabled=rem>.005;$('#pay-done').innerHTML=rem>.005?`Remaining ${money(rem)}`:`${ic('check',16,2.4)} Complete sale${change?' · change '+money(change):''}`;const a=$('#pay-amt');a&&setTimeout(()=>a.select(),30)}
+async function addPay(){
   const amt=r2(+$('#pay-amt').value),m=PAY.method,rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null;
   if(!Number.isFinite(amt)||!(amt>0))return toast('Enter a valid amount','warn');
   if(rem<=0)return toast('Already fully paid','info');
-  let ref='';
+  let ref='',maskedRef='',serverVerified=false,serverBal=0;
   if(m!=='Cash'&&amt>rem+.001)return toast(`${m} cannot exceed the remaining ${money(rem)}`,'warn');
   if(m==='Gift card'){
-    const code=$('#gc-code').value.trim().toUpperCase();
-    const g=S.giftcards.find(g=>g.code===code);
-    if(!g)return toast('Gift card not found','err');
-    if(g.exp&&new Date(g.exp)<new Date())return toast('Gift card has expired','err');
-    const alreadyUsed=sum(PAY.pays.filter(p=>p.method==='Gift card'&&p.ref===g.code),p=>p.amount);
-    const freeBal=r2(g.bal-alreadyUsed);
-    if(freeBal<amt-.001)return toast(`Gift card available balance is only ${money(Math.max(0,freeBal))}`,'err');
-    ref=g.code;
+    const code=($('#gc-code')?.value||'').trim().toUpperCase();
+    if(!code)return toast('Enter a gift card code','warn');
+    const localG=S.giftcards.find(g=>g.code===code&&!String(g.code).includes('•'));
+    if(localG){
+      if(localG.exp&&new Date(localG.exp)<new Date())return toast('Gift card has expired','err');
+      const alreadyUsed=sum(PAY.pays.filter(p=>p.method==='Gift card'&&p.ref===localG.code),p=>p.amount);
+      const freeBal=r2(localG.bal-alreadyUsed);
+      if(freeBal<amt-.001)return toast(`Gift card available balance is only ${money(Math.max(0,freeBal))}`,'err');
+      ref=localG.code;
+      maskedRef=localG.code;
+    }else{
+      try{
+        const r=await apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'checkGiftCard',code})});
+        const d=await r.json().catch(()=>null);
+        if(!r.ok||!d||!d.ok||!d.card)return toast((d&&d.error)||'Gift card not found','err');
+        const alreadyUsed=sum(PAY.pays.filter(p=>p.method==='Gift card'&&p.ref===code),p=>p.amount);
+        const freeBal=r2(d.card.bal-alreadyUsed);
+        if(freeBal<amt-.001)return toast(`Gift card available balance is only ${money(Math.max(0,freeBal))}`,'err');
+        ref=code;
+        maskedRef=d.card.maskedCode||code;
+        serverVerified=true;
+        serverBal=d.card.bal;
+      }catch{
+        return toast('Could not verify gift card with server','err');
+      }
+    }
   }
   if(m==='On account'){
     if(!cu)return toast('Attach a customer first','warn');
     const alreadyAcc=sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount);
     if(cu.credit+alreadyAcc+amt>cu.limit+.001)return toast('Exceeds the customer’s credit limit','err');
   }
-  PAY.pays.push({method:m,amount:amt,ref});
+  PAY.pays.push({method:m,amount:amt,ref,...(maskedRef?{maskedRef}:{}),...(serverVerified?{serverVerified,serverBal}:{})});
   drawPay();
 }
 function finishSale(){
@@ -320,12 +338,22 @@ function finishSale(){
   const short=t.items.filter(i=>i.qty>i.p.stock);if(short.length)return toast(`Cannot complete: only ${short[0].p.stock} × ${esc(short[0].p.name)} in stock now`,'err');
   // Re-validate gift card balances and customer credit limits before committing (guards held sales)
   const gcTotals={};
+  const gcServer={};
   for(const p of PAY.pays){
-    if(p.method==='Gift card'){gcTotals[p.ref]=(gcTotals[p.ref]||0)+p.amount}
+    if(p.method==='Gift card'){
+      gcTotals[p.ref]=(gcTotals[p.ref]||0)+p.amount;
+      if(p.serverVerified)gcServer[p.ref]=p.serverBal;
+    }
   }
   for(const [code,used] of Object.entries(gcTotals)){
-    const g=S.giftcards.find(x=>x.code===code);
-    if(!g||g.bal<used-.001)return toast(`Gift card ${esc(code)} no longer has enough balance`,'err');
+    const g=S.giftcards.find(x=>x.code===code&&!String(x.code).includes('•'));
+    if(g){
+      if(g.bal<used-.001)return toast(`Gift card ${esc(code)} no longer has enough balance`,'err');
+    }else if(gcServer[code]!=null){
+      if(gcServer[code]<used-.001)return toast('Gift card does not have enough balance','err');
+    }else{
+      return toast('Gift card could not be verified','err');
+    }
   }
   const onAccCheck=sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount);
   if(onAccCheck>0&&(!cu||cu.credit+onAccCheck>cu.limit+.001))return toast('Customer credit limit exceeded','err');
@@ -340,7 +368,11 @@ function finishSale(){
   const onAcc=sum(pays.filter(p=>p.method==='On account'),p=>p.amount);
   const earned=cu?Math.floor((t.total-PAY.redeem)*S.settings.pointsPer):0;
   const maxOrdNum=Math.max(1000,...S.orders.map(x=>parseInt(String(x.id).replace(/\D/g,''),10)||1000));
-  const o={id:'ORD-'+(maxOrdNum+1),inv:S.settings.invPrefix+(S.settings.nextInv++),time:new Date(),customer:cu?cu.name:'Walk-in customer',cid:cu?cu.id:null,items:t.items.map(i=>({id:i.id,name:i.p.name,emoji:i.p.emoji||'🛍️',qty:i.qty,price:i.p.price,disc:i.disc||0})),sub:t.sub,itemDisc:t.itemDisc,promo:t.promo,lines:t.lines,invDisc:t.invAmt,invLabel:S.cart.inv.code?'Coupon '+S.cart.inv.code:S.cart.inv.label||'Order discount',tax:t.tax,total:t.total,pays,change,status:onAcc>0?'On account':'Completed',cashier:cName,branch:activeBranch,reg:reg.id,refunded:0,channel:'In-store',earned,session:true};
+  const maxInvNum=Math.max(1000,...S.orders.map(x=>parseInt(String(x.inv||'').replace(/\D/g,''),10)||1000));
+  const nextInvNum=Math.max(S.settings.nextInv||1001,maxInvNum+1);
+  S.settings.nextInv=nextInvNum+1;
+  const uid='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const o={uid,id:'ORD-'+(maxOrdNum+1),inv:S.settings.invPrefix+nextInvNum,time:new Date(),customer:cu?cu.name:'Walk-in customer',cid:cu?cu.id:null,items:t.items.map(i=>({id:i.id,name:i.p.name,emoji:i.p.emoji||'🛍️',qty:i.qty,price:i.p.price,disc:i.disc||0})),sub:t.sub,itemDisc:t.itemDisc,promo:t.promo,lines:t.lines,invDisc:t.invAmt,invLabel:S.cart.inv.code?'Coupon '+S.cart.inv.code:S.cart.inv.label||'Order discount',tax:t.tax,total:t.total,pays,change,status:onAcc>0?'On account':'Completed',cashier:cName,branch:activeBranch,reg:reg.id,refunded:0,channel:'In-store',earned,session:true};
   t.items.forEach(i=>{
     i.p.stock=Math.max(0,i.p.stock-i.qty);
     i.p.sold30=(i.p.sold30||0)+i.qty;
@@ -351,7 +383,10 @@ function finishSale(){
     if(p.method==='Cash')reg.cash=r2((reg.cash||0)+p.amount);
     else if(p.method==='Card')reg.card=r2((reg.card||0)+p.amount);
     else if(p.method==='Digital wallet'||p.method==='Bank transfer')reg.digital=r2((reg.digital||0)+p.amount);
-    if(p.method==='Gift card'){const g=S.giftcards.find(g=>g.code===p.ref);if(g)g.bal=Math.max(0,r2(g.bal-p.amount))}
+    if(p.method==='Gift card'){
+      const g=S.giftcards.find(x=>x.code===p.ref||(p.maskedRef&&x.code===p.maskedRef));
+      if(g)g.bal=Math.max(0,r2(g.bal-p.amount));
+    }
   });
   if(cu){
     cu.points=Math.max(0,cu.points+earned-Math.round(PAY.redeem/Math.max(.001,S.settings.pointValue)));
