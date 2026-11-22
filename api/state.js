@@ -5,11 +5,11 @@ let cachedClient = null;
 let memoryState = null;
 
 function getMongoUri() {
+  // Credentials must come from environment variables (Vercel → Settings → Environment Variables).
+  // Never hard-code them: this repository is public.
   if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
-  const u = process.env.MONGODB_USERNAME || 'webseocompk1_db_user';
-  const p = process.env.MONGODB_PASSWORD || 'L6EMkMXI3taQFcMd';
-  const h = process.env.MONGODB_HOST || 'cluster0.mmakobx.mongodb.net';
-  return `mongodb+srv://${u}:${p}@${h}`;
+  const { MONGODB_USERNAME: u, MONGODB_PASSWORD: p, MONGODB_HOST: h } = process.env;
+  return u && p && h ? `mongodb+srv://${encodeURIComponent(u)}:${encodeURIComponent(p)}@${h}` : null;
 }
 
 async function getMongoCollection() {
