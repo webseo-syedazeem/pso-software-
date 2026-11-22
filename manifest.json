@@ -1,0 +1,17 @@
+{
+  "name": "Monarch Retail OS — Enterprise POS & Mart Management",
+  "short_name": "Monarch POS",
+  "description": "Enterprise Point of Sale, Inventory, Multi-Branch, CRM, Reporting & Retail Management Software.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070914",
+  "theme_color": "#5b4cf0",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

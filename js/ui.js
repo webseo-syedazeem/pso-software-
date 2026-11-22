@@ -67,12 +67,12 @@ function navBadge(k){if(k==='live')return '<span class="nav-b live">Live</span>'
 function renderNav(){$('#nav').innerHTML=NAV.map(g=>`<div class="nav-g">${g.g}</div>${g.items.map(i=>`<button class="nav-i ${S.page===i[0]?'active':''}" onclick="go('${i[0]}')" title="${i[1]}">${ic(i[2],19)}<span class="nav-t">${i[1]}</span>${navBadge(i[3])}</button>`).join('')}`).join('')}
 const PAGES={};
 function go(id){if(!PAGES[id])id='overview';try{if(location.protocol!=='about:'&&location.hash!=='#'+id)history.pushState(null,'','#'+id)}catch(e){}render(id)}
-function render(id,keepScroll){syncLiveStats();S.page=id;document.body.classList.remove('nav-open');renderNav();$('#crumb').textContent=NAMES[id];document.title=NAMES[id]+' · Monarch Retail OS';const v=$('#view');v.classList.remove('enter');v.innerHTML=PAGES[id]();void v.offsetWidth;v.classList.add('enter');if(!keepScroll)window.scrollTo({top:0,behavior:'instant'});after()}
+function render(id,keepScroll){syncLiveStats();S.page=id;document.body.classList.remove('nav-open');renderNav();$('#crumb').textContent=NAMES[id];const uFirst=(S.user?S.user.name:'Faizan Rizwan').split(' ')[0];document.title=`✦ ${NAMES[id]} · Monarch Retail OS (${uFirst})`;const v=$('#view');v.classList.remove('enter');v.innerHTML=PAGES[id]();void v.offsetWidth;v.classList.add('enter');if(!keepScroll)window.scrollTo({top:0,behavior:'instant'});after()}
 function refresh(){saveState();const y=scrollY;const v=$('#view');v.classList.remove('enter');v.innerHTML=PAGES[S.page]();renderNav();window.scrollTo(0,y);after(true)}
 let HOOKS=[];function after(quiet){bindCharts();bindDonuts();bindRings();if(!quiet)countUps($('#view'));else $$('#view [data-cu]').forEach(el=>{const f=el.dataset.f,v=+el.dataset.cu;el.textContent=f==='money'?money(v):f==='moneyK'?moneyK(v):f==='pct'?v.toFixed(1)+'%':f==='dec1'?v.toFixed(1):num(v)});const h=HOOKS;HOOKS=[];h.forEach(f=>f())}
 window.addEventListener('popstate',()=>{try{render(location.hash.slice(1)||'overview')}catch(e){}});
 function toggleCollapse(){document.body.classList.toggle('collapsed');try{localStorage.setItem('mon-col',document.body.classList.contains('collapsed')?1:0)}catch(e){}}
-function toggleTheme(){const d=document.documentElement;const n=d.dataset.theme==='dark'?'light':'dark';document.body.classList.add('theme-anim');d.dataset.theme=n;$('#theme-btn').innerHTML=ic(n==='dark'?'sun':'moon',18);try{localStorage.setItem('mon-theme',n)}catch(e){}setTimeout(()=>document.body.classList.remove('theme-anim'),500)}
+function toggleTheme(){const d=document.documentElement;const n=d.dataset.theme==='dark'?'light':'dark';document.body.classList.add('theme-anim');d.dataset.theme=n;$('#theme-btn').innerHTML=ic(n==='dark'?'sun':'moon',18);const mt=$('#meta-theme');if(mt)mt.setAttribute('content',n==='dark'?'#070914':'#5b4cf0');try{localStorage.setItem('mon-theme',n)}catch(e){}setTimeout(()=>document.body.classList.remove('theme-anim'),500)}
 function updateBranchSelect(){
   const sel=$('#branch-sel');
   if(!sel)return;
@@ -85,7 +85,12 @@ function refreshAnimated(){const y=scrollY;render(S.page,true);window.scrollTo(0
 const bf=()=>1;
 const bcode=()=>{if(S.branch==='All branches')return null;const b=S.branches.find(x=>x.name===S.branch||x.id===S.branch);return b?b.id:null};
 
-function head(eyebrow,title,sub,acts=''){return `<div class="ph"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div><div class="acts">${acts}</div></div>`}
+function head(eyebrow,title,sub,acts=''){
+  const isOv=String(title).includes('id="ov-greet"');
+  const hHtml=isOv?title:`<span id="ph-title" class="typing" data-title="${esc(title)}" style="display:inline-block;min-height:1.15em"></span>`;
+  const sHtml=isOv?sub:(sub?`<span id="ph-sub" data-sub="${esc(sub)}" style="display:inline-block;min-height:1.4em"></span>`:'');
+  return `<div class="ph"><div><div class="eyebrow">${eyebrow}</div><h1>${hHtml}</h1>${sHtml?`<p>${sHtml}</p>`:''}</div><div class="acts">${acts}</div></div>`;
+}
 function kpi(label,val,delta,icn,c='var(--primary)',sp,i=0,foot='live database'){const neg=String(delta).trim().startsWith('-');return `<div class="card kpi rv" style="--c:${c};--i:${i}"><div class="kpi-top">${label}<div class="kpi-ic">${ic(icn,18)}</div></div><div class="kpi-v">${val}</div><div class="kpi-f"><span>${delta!==''?`<span class="delta ${neg?'neg':''}">${ic(neg?'trendDown':'trend',12,2.4)} ${delta}</span> `:''}${foot}</span>${sp?spark(sp,c):''}</div></div>`}
 const foot=()=>`<div class="foot">MONARCH RETAIL OS · v4.2 · ${esc(S.settings.company.toUpperCase())}</div>`;
 const statusBadge=s=>{const m={Completed:'ok',Refunded:'bad','Partially refunded':'warn','On account':'info',Draft:'',Ordered:'info','Partially received':'warn',Received:'ok','In transit':'warn',Open:'warn',Resolved:'ok',Pending:'warn',Approved:'ok',Denied:'bad',Connected:'ok',Idle:'',Offline:'bad',Success:'ok',Active:'ok',Paused:''}[s]??'';return `<span class="badge dot ${m}">${s}</span>`};

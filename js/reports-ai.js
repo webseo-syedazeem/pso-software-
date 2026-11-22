@@ -282,7 +282,9 @@ function createAllPO(){
   S.pur='orders';go('purchasing');
 }
 let _aiT=null,_ovT1=null,_ovT2=null,_ovT3=null;
-function typeBrief(){
+const _TW={page:'',pIdx:0,cIdx:0,deleting:false,subIdx:0,pulseIdx:0,aiIdx:0};
+
+function typeBrief(reset=false){
   if(_aiT)clearTimeout(_aiT);
   const el=$('#ai-brief');if(!el)return;
   const h=new Date().getHours();
@@ -290,96 +292,114 @@ function typeBrief(){
   const name=(S.user?S.user.name:'Faizan Rizwan').split(' ')[0];
   const todayRev=sum(sessionToday(),o=>o.total-(o.refunded||0));
   const txt=`${greet}, ${name}. Your live workspace currently has ${S.products.length} products, ${S.customers.length} customers, and ${S.orders.length} total orders (${money(todayRev)} today). ${reorders().length} products are below minimum stock.`;
-  el.textContent='';
+  if(reset)_TW.aiIdx=0;
+  el.textContent=txt.slice(0,_TW.aiIdx);
   el.classList.add('typing');
-  let i=0;
   function step(){
     if(!document.body.contains(el))return;
-    el.textContent=txt.slice(0,++i);
-    if(i<txt.length){
-      _aiT=setTimeout(step,42);
+    _TW.aiIdx=Math.min(txt.length,_TW.aiIdx+1);
+    el.textContent=txt.slice(0,_TW.aiIdx);
+    if(_TW.aiIdx<txt.length){
+      _aiT=setTimeout(step,45);
     }
   }
-  _aiT=setTimeout(step,180);
+  if(_TW.aiIdx<txt.length)_aiT=setTimeout(step,140);
 }
-function typeOverview(){
+
+function typeOverview(reset=false){
   if(_ovT1)clearTimeout(_ovT1);
   if(_ovT2)clearTimeout(_ovT2);
   if(_ovT3)clearTimeout(_ovT3);
-  const gEl=$('#ov-greet');
-  const bEl=$('#ov-brief');
+  if(reset||_TW.page!==S.page){
+    _TW.page=S.page;
+    _TW.pIdx=0;
+    _TW.cIdx=0;
+    _TW.deleting=false;
+    _TW.subIdx=0;
+    _TW.pulseIdx=0;
+  }
+  const gEl=$('#ov-greet')||$('#ph-title');
+  const bEl=$('#ov-brief')||$('#ph-sub');
   const pEl=$('#ov-pulse');
   const h=new Date().getHours();
   const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
   const fullName=S.user?S.user.name:'Faizan Rizwan';
   const firstName=fullName.split(' ')[0];
-  const phrases=[
+  const isOv=S.page==='overview';
+  const baseTitle=(gEl&&gEl.dataset.title)||NAMES[S.page]||'Overview';
+  const phrases=isOv?[
     `${greet}, ${firstName}`,
     `Welcome back, ${fullName}`,
     `${greet}, ${firstName} · Live POS`
+  ]:[
+    `${baseTitle}`,
+    `${baseTitle} · ${firstName}`,
+    `${greet}, ${firstName} · ${baseTitle}`
   ];
   const brLabel=S.branch==='All branches'?S.branches.length+' branch'+(S.branches.length===1?'':'es'):S.branch;
-  const bTxt=`Live operational dashboard across ${brLabel} · ${S.cloudStatus}`;
+  const bTxt=isOv
+    ?`Live operational dashboard across ${brLabel} · ${S.cloudStatus}`
+    :((bEl&&bEl.dataset.sub)||'');
   const todayOrds=sessionToday();
   const pTxt=`✦ ${todayOrds.length} sale${todayOrds.length===1?'':'s'} recorded today · ${S.products.length} products & ${S.customers.length} customers live on ${S.cloudStatus}`;
 
   if(gEl){
-    gEl.textContent='';
+    const cur0=phrases[_TW.pIdx%phrases.length];
+    gEl.textContent=cur0.slice(0,_TW.cIdx);
     gEl.classList.add('typing');
-    let pIdx=0,cIdx=0,deleting=false;
     function tickGreet(){
       if(!document.body.contains(gEl))return;
-      const cur=phrases[pIdx%phrases.length];
-      if(!deleting){
-        cIdx++;
-        gEl.textContent=cur.slice(0,cIdx);
-        if(cIdx>=cur.length){
-          deleting=true;
+      const cur=phrases[_TW.pIdx%phrases.length];
+      if(!_TW.deleting){
+        _TW.cIdx++;
+        gEl.textContent=cur.slice(0,_TW.cIdx);
+        if(_TW.cIdx>=cur.length){
+          _TW.deleting=true;
           _ovT1=setTimeout(tickGreet,3400);
         }else{
-          _ovT1=setTimeout(tickGreet,105);
+          _ovT1=setTimeout(tickGreet,108);
         }
       }else{
-        cIdx--;
-        gEl.textContent=cur.slice(0,cIdx);
-        if(cIdx<=0){
-          deleting=false;
-          pIdx++;
-          _ovT1=setTimeout(tickGreet,420);
+        _TW.cIdx--;
+        gEl.textContent=cur.slice(0,_TW.cIdx);
+        if(_TW.cIdx<=0){
+          _TW.deleting=false;
+          _TW.pIdx++;
+          _ovT1=setTimeout(tickGreet,440);
         }else{
-          _ovT1=setTimeout(tickGreet,48);
+          _ovT1=setTimeout(tickGreet,50);
         }
       }
     }
-    _ovT1=setTimeout(tickGreet,220);
+    _ovT1=setTimeout(tickGreet,_TW.cIdx===0?200:108);
   }
-  if(bEl){
-    bEl.textContent='';
-    bEl.classList.add('typing');
-    let k=0;
+  if(bEl&&bTxt){
+    bEl.textContent=bTxt.slice(0,_TW.subIdx);
+    if(_TW.subIdx<bTxt.length)bEl.classList.add('typing');
     function tickBrief(){
       if(!document.body.contains(bEl))return;
-      bEl.textContent=bTxt.slice(0,++k);
-      if(k<bTxt.length){
-        _ovT3=setTimeout(tickBrief,45);
+      _TW.subIdx=Math.min(bTxt.length,_TW.subIdx+1);
+      bEl.textContent=bTxt.slice(0,_TW.subIdx);
+      if(_TW.subIdx<bTxt.length){
+        _ovT3=setTimeout(tickBrief,40);
       }else{
-        setTimeout(()=>bEl.classList.remove('typing'),900);
+        setTimeout(()=>bEl.classList.remove('typing'),800);
       }
     }
-    _ovT3=setTimeout(tickBrief,300);
+    if(_TW.subIdx<bTxt.length)_ovT3=setTimeout(tickBrief,260);
   }
   if(pEl){
-    pEl.textContent='';
+    pEl.textContent=pTxt.slice(0,_TW.pulseIdx);
     pEl.classList.add('typing');
-    let j=0;
     function tickPulse(){
       if(!document.body.contains(pEl))return;
-      pEl.textContent=pTxt.slice(0,++j);
-      if(j<pTxt.length){
+      _TW.pulseIdx=Math.min(pTxt.length,_TW.pulseIdx+1);
+      pEl.textContent=pTxt.slice(0,_TW.pulseIdx);
+      if(_TW.pulseIdx<pTxt.length){
         _ovT2=setTimeout(tickPulse,42);
       }
     }
-    _ovT2=setTimeout(tickPulse,350);
+    if(_TW.pulseIdx<pTxt.length)_ovT2=setTimeout(tickPulse,300);
   }
 }
 
@@ -578,13 +598,13 @@ function openUserMenu(e){
 /* ================= INIT ================= */
 const _render=render;render=function(id,k){
   _render(id,k);
-  if(id==='overview')setTimeout(typeOverview,120);
-  if(id==='ai')setTimeout(typeBrief,180);
+  setTimeout(()=>typeOverview(true),80);
+  if(id==='ai')setTimeout(()=>typeBrief(true),140);
 };
 const _refresh=refresh;refresh=function(){
   _refresh();
-  if(S.page==='overview')setTimeout(typeOverview,80);
-  if(S.page==='ai')setTimeout(typeBrief,100);
+  typeOverview(false);
+  if(S.page==='ai')typeBrief(false);
 };
 
 (function init(){
@@ -601,6 +621,6 @@ const _refresh=refresh;refresh=function(){
   try{first=location.hash.slice(1)}catch(e){}
   render(PAGES[first]?first:'overview');
   if(!S.user)openAuthScreen(false);
-  setTimeout(()=>{$('#splash').classList.add('out');countUps($('#view'));if(S.page==='overview')typeOverview();if(S.page==='ai')typeBrief()},1150);
+  setTimeout(()=>{$('#splash').classList.add('out');countUps($('#view'));typeOverview(true);if(S.page==='ai')typeBrief(true)},1150);
   setTimeout(()=>$('#splash')?.remove(),1900);
 })();
