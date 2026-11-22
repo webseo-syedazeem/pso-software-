@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// Load .env if present
+// Load .env if present (local development only)
 const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
   fs.readFileSync(envPath, 'utf8').split(/\r?\n/).forEach(line => {
@@ -12,7 +12,10 @@ if (fs.existsSync(envPath)) {
 }
 
 const PORT = process.env.PORT || 3000;
+const ROOT_DIR = path.resolve(__dirname);
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const stateHandler = require('./api/state.js');
+const authHandler = require('./api/auth.js');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -24,38 +27,63 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+const BLOCKED_PREFIXES = ['/.env', '/.git', '/api/', '/server.js', '/package.json', '/package-lock.json', '/vercel.json', '/node_modules/'];
 
-  if (url.pathname === '/api/state') {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    let raw = '';
-    req.on('data', c => (raw += c));
-    req.on('end', async () => {
-      try {
-        req.body = raw ? JSON.parse(raw) : {};
-      } catch (e) {
-        req.body = {};
-      }
-      const wrapRes = {
-        setHeader: (k, v) => res.setHeader(k, v),
-        status: code => ({
-          json: obj => { res.statusCode = code; res.end(JSON.stringify(obj)); },
-          end: () => { res.statusCode = code; res.end(); }
-        })
-      };
-      await stateHandler(req, wrapRes);
-    });
-    return;
+function runApiHandler(handler, req, res) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  let raw = '';
+  let aborted = false;
+  req.on('data', chunk => {
+    raw += chunk;
+    if (raw.length > MAX_BODY_BYTES && !aborted) {
+      aborted = true;
+      res.statusCode = 413;
+      res.end(JSON.stringify({ ok: false, error: 'Payload too large' }));
+      req.destroy();
+    }
+  });
+  req.on('end', async () => {
+    if (aborted) return;
+    try {
+      req.body = raw ? JSON.parse(raw) : {};
+    } catch {
+      req.body = {};
+    }
+    const wrapRes = {
+      setHeader: (k, v) => res.setHeader(k, v),
+      status: code => ({
+        json: obj => { res.statusCode = code; res.end(JSON.stringify(obj)); },
+        end: () => { res.statusCode = code; res.end(); }
+      })
+    };
+    await handler(req, wrapRes);
+  });
+}
+
+const server = http.createServer((req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = decodeURIComponent(url.pathname);
+
+  if (pathname === '/api/state') return runApiHandler(stateHandler, req, res);
+  if (pathname === '/api/auth') return runApiHandler(authHandler, req, res);
+
+  if (BLOCKED_PREFIXES.some(p => pathname === p || pathname.startsWith(p))) {
+    res.statusCode = 403;
+    return res.end('Forbidden');
   }
 
-  let filePath = path.join(__dirname, url.pathname === '/' ? 'index.html' : url.pathname);
-  if (!filePath.startsWith(__dirname)) {
+  const target = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  let filePath = path.resolve(ROOT_DIR, target);
+  if (filePath !== ROOT_DIR && !filePath.startsWith(ROOT_DIR + path.sep)) {
     res.statusCode = 403;
     return res.end('Forbidden');
   }
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    filePath = path.join(__dirname, 'index.html');
+    filePath = path.join(ROOT_DIR, 'index.html');
   }
   const ext = path.extname(filePath).toLowerCase();
   res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream');
@@ -63,5 +91,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Monarch Retail OS (MongoDB Atlas Live) running at http://localhost:${PORT}`);
+  console.log(`Monarch Retail OS (Hardened Server) running at http://localhost:${PORT}`);
 });

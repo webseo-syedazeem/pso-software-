@@ -158,7 +158,13 @@ function qty(id,n){const it=S.cart.items.find(x=>x.id===id),p=P(id);if(!it)retur
 function rmItem(id){S.cart.items=S.cart.items.filter(x=>x.id!==id);drawCart()}
 function drawCart(){const el=$('#cart');if(!el)return;el.innerHTML=cartHTML();const t=$('#c-total');t&&t.classList.add('bump')}
 function cartHTML(){const t=calc(),cu=t.cust;return `<div class="cart-h"><div class="row between"><div><div class="eyebrow" style="margin:0">Current sale</div><h3 class="display" style="margin:3px 0 0;font-size:18px;letter-spacing:-.4px">${S.settings.invPrefix}${S.settings.nextInv} <span class="muted" style="font-size:13px;font-weight:500">· ${t.count} item${t.count===1?'':'s'}</span></h3></div><button class="btn ghost sm" onclick="voidSale()">${ic('trash',15)} Void</button></div><button class="cust-pick ${cu?'set':''}" onclick="pickCustomer()">${cu?avatar(cu.name,34):`<div class="kpi-ic" style="width:34px;height:34px;border-radius:10px">${ic('userPlus',16)}</div>`}<div style="flex:1;min-width:0">${cu?`<b style="font-size:13px">${esc(cu.name)}</b> <span class="tier ${cu.tier}">${ic('crown',11)} ${cu.tier}</span><div class="xs muted">${num(cu.points)} pts · worth ${money(cu.points*S.settings.pointValue)}</div>`:`<b style="font-size:13px">Add customer</b><div class="xs muted">Earn loyalty points & member pricing</div>`}</div>${ic('chevR',16)}</button></div><div class="cart-b">${t.items.length?t.items.map(i=>`<div class="ci"><div class="pimg" style="background:${catMeta(i.p.cat).tone}">${i.p.emoji||'🛍️'}</div><div class="cn"><b title="${esc(i.p.name)}">${esc(i.p.name)}</b><small>${money(i.p.price)} ea${i.disc?` · <span class="idisc">−${i.disc}%</span>`:''}</small> <button class="xs" style="color:var(--primary);font-weight:600" onclick="itemDisc(${i.id})">${i.disc?'Edit':'+ Discount'}</button></div><div class="qty"><button onclick="qty(${i.id},-1)" aria-label="Decrease">${ic('minus',13,2.4)}</button><span>${i.qty}</span><button onclick="qty(${i.id},1)" aria-label="Increase">${ic('plus',13,2.4)}</button></div><div class="lt">${money(i.net)}</div><button class="rm" onclick="rmItem(${i.id})" aria-label="Remove">${ic('x',15)}</button></div>`).join(''):`<div class="empty" style="padding:38px 10px"><div class="e-ic">${ic('scan',28)}</div><b style="color:var(--text)">Ready for customer</b><div class="sm">Scan a barcode or tap a product to begin.</div></div>`}</div><div class="cart-f"><div class="ml"><span>Subtotal</span><b>${money(t.sub)}</b></div>${t.itemDisc?`<div class="ml promo"><span>Item discounts</span><b>−${money(t.itemDisc)}</b></div>`:''}${t.lines.map(l=>`<div class="ml promo"><span>${ic('tag',12)} ${esc(l.name)}</span><b>−${money(l.amt)}</b></div>`).join('')}${t.invAmt?`<div class="ml promo"><span>${S.cart.inv.label||(S.cart.inv.code?'Coupon '+S.cart.inv.code:'Order discount'+(S.cart.inv.type==='pct'?' ('+S.cart.inv.value+'%)':''))} <button onclick="S.cart.inv={type:'pct',value:0,code:'',label:''};drawCart()" style="color:var(--text-3)">✕</button></span><b>−${money(t.invAmt)}</b></div>`:''}<div class="ml"><span>Tax ${S.settings.taxRate}% ${S.settings.taxInclusive?'(included)':'(added)'}</span><b>${money(t.tax)}</b></div>${paidLine()}<div class="ml tot"><span>${cartPaid(S.cart)?'Still to pay':'Total due'}</span><b id="c-total">${money(Math.max(0,t.total-cartPaid(S.cart)))}</b></div><button class="pay-btn" ${t.count?'':'disabled'} onclick="openPay()"><span class="row" style="gap:9px">${ic('card',19)} ${cartPaid(S.cart)?'Continue payment':'Take payment'}</span><span class="row" style="gap:6px">${money(t.total)} ${ic('arrowR',17)}</span></button><div class="tools"><button onclick="holdSale()">${ic('pause',17)}Hold</button><button onclick="resumeList()">${ic('undo',17)}Resume${S.held.length?`<span class="cnt">${S.held.length}</span>`:''}</button><button onclick="orderDisc()">${ic('percent',17)}Discount</button><button onclick="go('orders')">${ic('swap',17)}Return</button></div></div>`}
-function voidSale(){if(!S.cart.items.length)return toast('Cart is already empty','info');const pd=cartPaid(S.cart);confirmBox('Void this sale?',pd?`${money(pd)} has already been collected — return it to the customer first. This action is recorded in the audit trail.`:'All items will be removed. This action is recorded in the audit trail.',()=>{PAY=null;audit('void',`Sale voided before payment${pd?' · '+money(pd)+' had been collected':''}`,money(calc().total));S.cart={items:[],customer:null,inv:{type:'pct',value:0,code:'',label:''}};drawCart();toast('Sale voided','info')},{danger:true,label:'Void sale'})}
+function voidSale(){
+  if(!S.cart.items.length)return toast('Cart is already empty','info');
+  const pd=cartPaid(S.cart);
+  const doVoid=()=>confirmBox('Void this sale?',pd?`${money(pd)} has already been collected — return it to the customer first. This action is recorded in the audit trail.`:'All items will be removed. This action is recorded in the audit trail.',()=>{PAY=null;audit('void',`Sale voided before payment${pd?' · '+money(pd)+' had been collected':''}`,money(calc().total));S.cart=EMPTY_CART();drawCart();toast('Sale voided','info')},{danger:true,label:'Void sale'});
+  if(!hasPerm('void'))return pinPrompt('Manager approval required to void this sale',doVoid);
+  doVoid();
+}
 const EMPTY_CART=()=>({items:[],customer:null,inv:{type:'pct',value:0,code:'',label:''}});
 function curReg(){const b=(S.user&&S.user.branch&&S.user.branch!=='All')?S.user.branch:(S.branches[0]?.id||'MAIN');return S.registers.find(r=>r.branch===b&&r.open)||S.registers[0]||{id:'REG-01'}}
 /* Units of a product parked in held sales (so the next customer cannot buy stock that is already promised) */
@@ -202,46 +208,128 @@ function resumeHeld(id){
   closeModal();setTimeout(()=>{drawCart();posFilter();if(h.paid)openPay()},230);
   toast(h.paid?`Resumed ${esc(h.label)} — ${money(h.paid)} already collected`:`Resumed ${esc(h.label)}`);
 }
-function deleteHeld(id){const h=S.held.find(x=>x.id===id);if(!h)return;closeModal();setTimeout(()=>confirmBox('Delete held sale?',h.paid?`${money(h.paid)} was already collected from ${esc(h.label)}. Return that money to the customer before deleting — this is logged in the audit trail.`:`${esc(h.label)} · ${h.count} items will be released back to stock.`,()=>{S.held=S.held.filter(x=>x!==h);audit('void',`Held sale deleted · ${h.id} · ${h.label}${h.paid?' · '+money(h.paid)+' had been collected':''}`,money(h.total));drawCart();posFilter();toast('Held sale deleted','info')},{danger:true,label:'Delete'}),220)}
-function pinPrompt(reason,cb){window._pincb=cb;modal({title:'Manager approval',sub:reason,size:'sm',icon:'lock',iconC:'var(--warning)',body:`<div class="row" style="justify-content:center;gap:10px" id="pins">${[0,1,2,3].map(i=>`<input class="input" maxlength="1" type="password" inputmode="numeric" style="width:54px;height:60px;text-align:center;font:800 24px 'Plus Jakarta Sans',system-ui,sans-serif" oninput="pinIn(this,${i})" onkeydown="if(event.key==='Backspace'&&!this.value&&this.previousElementSibling)this.previousElementSibling.focus()">`).join('')}</div><p class="xs muted" style="text-align:center;margin-top:14px">${ic('lock',12)} Enter Admin or Manager 4-digit PIN</p>`})}
-function pinIn(el,i){
+function deleteHeld(id){
+  const h=S.held.find(x=>x.id===id);if(!h)return;
+  const doDel=()=>confirmBox('Delete held sale?',h.paid?`${money(h.paid)} was already collected from ${esc(h.label)}. Return that money to the customer before deleting — this is logged in the audit trail.`:`${esc(h.label)} · ${h.count} items will be released back to stock.`,()=>{S.held=S.held.filter(x=>x!==h);audit('void',`Held sale deleted · ${h.id} · ${h.label}${h.paid?' · '+money(h.paid)+' had been collected':''}`,money(h.total));drawCart();posFilter();toast('Held sale deleted','info')},{danger:true,label:'Delete'});
+  closeModal();
+  setTimeout(()=>{if(!hasPerm('void'))pinPrompt('Manager approval required to delete held sale',doDel);else doDel()},220);
+}
+function pinPrompt(reason,cb){window._pincb=cb;modal({title:'Manager approval',sub:reason,size:'sm',icon:'lock',iconC:'var(--warning)',body:`<div class="row" style="justify-content:center;gap:10px" id="pins">${[0,1,2,3].map(i=>`<input class="input" maxlength="1" type="password" inputmode="numeric" style="width:54px;height:60px;text-align:center;font:800 24px 'Plus Jakarta Sans',system-ui,sans-serif" oninput="pinIn(this,${i})" onkeydown="if(event.key==='Backspace'&&!this.value&&this.previousElementSibling)this.previousElementSibling.focus()">`).join('')}</div><p class="xs muted" style="text-align:center;margin-top:14px">${ic('lock',12)} Enter Admin or Manager 4-digit PIN (verified server-side)</p>`})}
+async function pinIn(el,i){
   el.value=el.value.replace(/\D/g,'');
   if(el.value&&el.nextElementSibling)el.nextElementSibling.focus();
   const v=$$('#pins input').map(x=>x.value).join('');
   if(v.length===4){
-    const mgr=S.employees.find(e=>(e.role==='Owner'||e.role==='Manager')&&e.pin===v);
-    if(mgr||v===S.settings.managerPin){
-      $$('#pins input').forEach(x=>x.style.borderColor='var(--success)');
-      setTimeout(()=>{closeModal();setTimeout(()=>window._pincb(),220)},300);
-      audit('approval','Manager PIN approval granted',mgr?mgr.name:'Admin');
-    }else{
-      const p=$('#pins');p.style.animation='shake .35s 2';
-      $$('#pins input').forEach(x=>{x.value='';x.style.borderColor='var(--danger)'});
-      setTimeout(()=>{p.style.animation='';$('#pins input').focus()},700);
-      toast('Incorrect Manager/Admin PIN','err');
+    $$('#pins input').forEach(x=>x.disabled=true);
+    try{
+      const r=await apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'verifyManagerPin',pin:v})});
+      const d=await r.json().catch(()=>null);
+      if(r.ok&&d&&d.ok){
+        $$('#pins input').forEach(x=>x.style.borderColor='var(--success)');
+        audit('approval','Manager PIN approval granted',d.approver||'Manager');
+        setTimeout(()=>{closeModal();setTimeout(()=>window._pincb&&window._pincb(),220)},280);
+        return;
+      }
+      const p=$('#pins');if(p)p.style.animation='shake .35s 2';
+      $$('#pins input').forEach(x=>{x.disabled=false;x.value='';x.style.borderColor='var(--danger)'});
+      setTimeout(()=>{if(p)p.style.animation='';const f=$('#pins input');f&&f.focus()},600);
+      toast((d&&d.error)||'Incorrect Manager/Admin PIN','err');
+    }catch{
+      $$('#pins input').forEach(x=>{x.disabled=false;x.value=''});
+      toast('Could not reach auth server to verify PIN','err');
     }
   }
 }
 function itemDisc(id){const it=S.cart.items.find(x=>x.id===id),p=P(id);modal({title:'Item discount',sub:`${esc(p.name)} · ${money(p.price)} × ${it.qty}`,size:'sm',icon:'percent',body:`<div class="quick" style="margin:0 0 12px">${[0,5,10,15,20,25,50].map(v=>`<button class="chip" onclick="$('#idv').value=${v}">${v?v+'%':'None'}</button>`).join('')}</div><label class="field">Discount percentage<input class="input" id="idv" type="number" min="0" max="100" value="${it.disc||0}"></label><p class="xs muted" style="margin-top:10px">Discounts above ${S.settings.discountAlert}% require manager authorisation.</p>`,foot:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="applyItemDisc(${id})">Apply</button>`})}
-function applyItemDisc(id){const v=+$('#idv').value;if(!(v>=0&&v<=100))return toast('Enter 0–100%','warn');const go2=()=>{S.cart.items.find(x=>x.id===id).disc=v;drawCart();toast(v?`${v}% item discount applied`:'Discount removed')};closeModal();if(v>S.settings.discountAlert&&!isAdmin())setTimeout(()=>pinPrompt(`Authorise a ${v}% item discount`,go2),220);else go2()}
+function applyItemDisc(id){
+  const v=+$('#idv').value;if(!(v>=0&&v<=100))return toast('Enter 0–100%','warn');
+  const go2=()=>{S.cart.items.find(x=>x.id===id).disc=v;drawCart();toast(v?`${v}% item discount applied`:'Discount removed')};
+  const needsMgr=(v>10&&!hasPerm('discMax'))||(v>S.settings.discountAlert&&!isAdmin())||(v>0&&!hasPerm('disc10')&&!hasPerm('discMax'));
+  closeModal();
+  if(needsMgr)setTimeout(()=>pinPrompt(`Authorise a ${v}% item discount`,go2),220);else go2();
+}
 const DLAB=()=>['Discount %','Amount ('+CUR[S.settings.currency].trim()+')','Coupon code'];
 function orderDisc(){if(!S.cart.items.length)return toast('Add products first','warn');window._dt='pct';modal({title:'Order discount',sub:'Apply a percentage, a fixed amount, or a coupon code.',icon:'percent',body:`<div class="seg" id="dseg" style="margin-bottom:16px">${[['pct','Percentage'],['fixed','Fixed amount'],['coupon','Coupon code']].map(([k,l],i)=>`<button class="${i?'':'on'}" onclick="window._dt='${k}';$$('#dseg button').forEach(b=>b.classList.remove('on'));this.classList.add('on');$('#dlab').textContent=DLAB()[${i}];$('#dv').type='${k==='coupon'?'text':'number'}';$('#dv').value='';$('#dv').focus()">${l}</button>`).join('')}</div><label class="field"><span id="dlab">Discount %</span><input class="input" id="dv" type="number" min="0" placeholder="e.g. 10"></label><p class="xs muted" style="margin-top:10px">Discounts above ${S.settings.discountAlert}% require manager approval.</p>`,foot:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn pri" onclick="applyOrderDisc()">Apply discount</button>`})}
-function applyOrderDisc(){const t=window._dt,raw=$('#dv').value.trim();let inv;if(t==='coupon'){const c=S.coupons.find(c=>c.code===raw.toUpperCase());if(!c||!c.active)return toast('Coupon not valid or expired','err');inv={type:'pct',value:c.pct,code:c.code,label:''}}else{const v=+raw;if(!(v>0))return toast('Enter a valid amount','warn');if(t==='pct'&&v>100)return toast('Maximum is 100%','warn');inv={type:t,value:v,code:'',label:''}}const pctEq=inv.type==='pct'?inv.value:inv.value/Math.max(1,calc().total)*100;const apply=()=>{S.cart.inv=inv;drawCart();toast('Discount applied')};closeModal();if(pctEq>S.settings.discountAlert&&!inv.code&&!isAdmin())setTimeout(()=>pinPrompt(`Authorise an order discount of ${pctEq.toFixed(0)}%`,apply),220);else apply()}
+function applyOrderDisc(){
+  const t=window._dt,raw=$('#dv').value.trim();let inv;
+  if(t==='coupon'){
+    const c=S.coupons.find(c=>c.code===raw.toUpperCase());
+    if(!c||!c.active)return toast('Coupon not valid or paused','err');
+    if(c.limit&&c.uses>=c.limit)return toast('Coupon usage limit reached','err');
+    if(c.exp&&new Date(c.exp)<new Date())return toast('Coupon has expired','err');
+    inv={type:'pct',value:c.pct,code:c.code,label:''};
+  }else{
+    const v=+raw;if(!(v>0))return toast('Enter a valid amount','warn');
+    if(t==='pct'&&v>100)return toast('Maximum is 100%','warn');
+    inv={type:t,value:v,code:'',label:''};
+  }
+  const pctEq=inv.type==='pct'?inv.value:inv.value/Math.max(1,calc().total)*100;
+  const apply=()=>{S.cart.inv=inv;drawCart();toast('Discount applied')};
+  const needsMgr=!inv.code&&((pctEq>10&&!hasPerm('discMax'))||(pctEq>S.settings.discountAlert&&!isAdmin())||(!hasPerm('disc10')&&!hasPerm('discMax')));
+  closeModal();
+  if(needsMgr)setTimeout(()=>pinPrompt(`Authorise an order discount of ${pctEq.toFixed(0)}%`,apply),220);else apply();
+}
 function pickCustomer(){modal({title:'Select customer',sub:'Search by name, phone or email',icon:'users',body:`<label class="search" style="margin-bottom:12px">${ic('search',16)}<input id="cq" placeholder="Search customers…" oninput="$('#clist').innerHTML=custRows(this.value)"></label><div id="clist" style="max-height:340px;overflow:auto">${custRows('')}</div>`,foot:`<button class="btn" onclick="S.cart.customer=null;closeModal();drawCart()">Walk-in customer</button><button class="btn pri" onclick="closeModal();setTimeout(()=>addCustomer(true),220)">${ic('userPlus',16)} New customer</button>`})}
-function custRows(q){q=q.toLowerCase();return S.customers.filter(c=>(c.name+c.phone+c.email).toLowerCase().includes(q)).map(c=>`<button class="cmd-r" onclick="selCust(${c.id})">${avatar(c.name,34)}<div><b style="color:var(--text)">${esc(c.name)}</b> <span class="tier ${c.tier}">${c.tier}</span><div class="xs muted">${c.phone} · ${num(c.points)} pts${c.credit?` · owes ${money(c.credit)}`:''}</div></div><small>${c.group}</small></button>`).join('')||'<div class="empty">No customers yet — click "New customer" below to create one.</div>'}
+function custRows(q){q=q.toLowerCase();return S.customers.filter(c=>(c.name+c.phone+c.email).toLowerCase().includes(q)).map(c=>`<button class="cmd-r" onclick="selCust(${c.id})">${avatar(c.name,34)}<div><b style="color:var(--text)">${esc(c.name)}</b> <span class="tier ${esc(c.tier)}">${esc(c.tier)}</span><div class="xs muted">${esc(c.phone)} · ${num(c.points)} pts${c.credit?` · owes ${money(c.credit)}`:''}</div></div><small>${esc(c.group)}</small></button>`).join('')||'<div class="empty">No customers yet — click "New customer" below to create one.</div>'}
 function selCust(id){const c=C(id);S.cart.customer=id;closeModal();drawCart();toast(`<b>${esc(c.name)}</b> attached · ${c.tier} member`)}
 function openCustDisplay(){const t=calc();modal({title:'Customer-facing display',sub:'Live mirror of what the shopper sees',size:'lg',icon:'monitor',body:`<div class="grid g2" style="border-radius:20px;background:linear-gradient(135deg,#121633,#0c0f22);color:#fff;padding:24px;min-height:260px;gap:20px"><div><div style="font:800 20px 'Plus Jakarta Sans',system-ui,sans-serif">monarch<span style="color:#d5fd79">.</span></div><div style="margin-top:18px;display:grid;gap:9px;font-size:13px">${t.items.slice(-6).map(i=>`<div class="row between" style="animation:ciIn .4s both"><span>${i.p.emoji||'🛍️'} ${esc(i.p.name)} × ${i.qty}</span><b>${money(i.net)}</b></div>`).join('')||'<div style="color:#aab0d3">Welcome! Your items will appear here.</div>'}</div></div><div style="background:#ffffff0d;border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:center"><small style="color:#aab0d3;letter-spacing:1.5px">TOTAL</small><div style="font:800 clamp(28px,4vw,42px) 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-1.5px">${money(t.total)}</div>${t.promo+t.invAmt+t.itemDisc>0?`<div style="color:#d5fd79;font-weight:700;margin-top:6px">You saved ${money(t.promo+t.invAmt+t.itemDisc)} today 🎉</div>`:''}${t.cust?`<div style="color:#aab0d3;margin-top:10px;font-size:12px">Hi ${esc(t.cust.name.split(' ')[0])}! You’ll earn ${num(Math.floor(t.total*S.settings.pointsPer))} points.</div>`:''}</div></div>`})}
 
 /* ---------- PAYMENT ---------- */
 let PAY=null;
 const METHODS=[['Card','card'],['Cash','cash'],['Bank transfer','bank'],['Digital wallet','phone'],['Gift card','gift'],['On account','user']];
-function openPay(){const t=calc();if(!t.count)return toast('Add products to the cart first','warn');const short=t.items.filter(i=>i.qty>i.p.stock);if(short.length)return toast(`Stock changed: only ${short[0].p.stock} × ${esc(short[0].p.name)} left — adjust the cart`,'err');if(!S.cart.pay)S.cart.pay={total:t.total,method:'Cash',pays:[],redeem:0};PAY=S.cart.pay;if(Math.abs(PAY.total-t.total)>.005){if(PAY.pays.length)toast(`Cart changed — total updated to ${money(t.total)}`,'info');PAY.total=t.total;PAY.redeem=Math.min(PAY.redeem||0,t.total)}modal({title:'Take payment',sub:'Split across tenders, take partial payments, or hold the sale while the customer fetches money.',size:'lg',icon:'card',body:'<div id="pay-b"></div>',foot:`<button class="btn" onclick="closeModal();setTimeout(drawCart,220)">Back to cart</button><button class="btn" onclick="holdSale(true)" title="F8">${ic('pause',16)} Hold sale</button><button class="btn pri" id="pay-done" onclick="finishSale()">${ic('check',16,2.4)} Complete sale</button>`});drawPay()}
+function openPay(){
+  if(!hasPerm('sale'))return toast('Your role does not have permission to process sales','err');
+  const t=calc();if(!t.count)return toast('Add products to the cart first','warn');
+  const short=t.items.filter(i=>i.qty>i.p.stock);
+  if(short.length)return toast(`Stock changed: only ${short[0].p.stock} × ${esc(short[0].p.name)} left — adjust the cart`,'err');
+  if(!S.cart.pay)S.cart.pay={total:t.total,method:'Cash',pays:[],redeem:0};
+  PAY=S.cart.pay;
+  if(Math.abs(PAY.total-t.total)>.005){if(PAY.pays.length)toast(`Cart changed — total updated to ${money(t.total)}`,'info');PAY.total=t.total;PAY.redeem=Math.min(PAY.redeem||0,t.total)}
+  modal({title:'Take payment',sub:'Split across tenders, take partial payments, or hold the sale while the customer fetches money.',size:'lg',icon:'card',body:'<div id="pay-b"></div>',foot:`<button class="btn" onclick="closeModal();setTimeout(drawCart,220)">Back to cart</button><button class="btn" onclick="holdSale(true)" title="F8">${ic('pause',16)} Hold sale</button><button class="btn pri" id="pay-done" onclick="finishSale()">${ic('check',16,2.4)} Complete sale</button>`});
+  drawPay();
+}
 const payRem=()=>r2(PAY.total-PAY.redeem-sum(PAY.pays,p=>p.amount));
-function drawPay(){const rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null,change=rem<0?-rem:0;const def=Math.max(0,rem);const ptsVal=cu?r2(cu.points*S.settings.pointValue):0;$('#pay-b').innerHTML=`<div class="due"><div><small>AMOUNT DUE</small><b>${money(PAY.total)}</b></div><div style="text-align:right"><small>${change?'CHANGE DUE':'REMAINING'}</small><b style="color:${change?'#d5fd79':rem<=0?'#7ef0c4':'#fff'}">${money(change||Math.max(0,rem))}</b></div></div><div class="pm-grid">${METHODS.map(([m,i])=>`<button class="pm ${PAY.method===m?'on':''}" onclick="PAY.method='${m}';drawPay()">${ic(i,20)}${m}</button>`).join('')}</div><div class="fgrid" style="margin-top:16px">${PAY.method==='Gift card'?`<label class="field">Gift card code<input class="input" id="gc-code" placeholder="GC-XXXX-XXXX"></label>`:''}<label class="field ${PAY.method==='Gift card'?'':'full'}">Amount (${PAY.method})<div class="row"><input class="input num" id="pay-amt" type="number" step=".01" value="${def.toFixed(2)}" onkeydown="if(event.key==='Enter')addPay()"><button class="btn pri" onclick="addPay()" style="height:42px">${ic('plus',16,2.4)} Add</button></div></label></div>${PAY.method==='Cash'?`<div class="quick">${[def,Math.ceil(def/100)*100,Math.ceil(def/500)*500,Math.ceil(def/1000)*1000,5000].filter((v,i,a)=>v>0&&a.indexOf(v)===i).map(v=>`<button class="chip" onclick="$('#pay-amt').value=${v.toFixed(2)};addPay()">${money(v)}</button>`).join('')}</div>`:''}${PAY.method==='On account'?`<p class="xs muted" style="margin-top:10px">${cu?`Available credit: <b>${money(cu.limit-cu.credit)}</b> of ${money(cu.limit)} limit`:'⚠ Attach a customer to charge to their account.'}</p>`:''}${cu&&cu.points>=10?`<div class="alert" style="--c:var(--pink);margin-top:14px"><div class="fic" style="--c:var(--pink)">${ic('star',16)}</div><div style="flex:1"><b>Redeem loyalty points</b><small>${num(cu.points)} pts available · worth ${money(ptsVal)}</small></div><label class="switch"><input type="checkbox" ${PAY.redeem?'checked':''} onchange="PAY.redeem=this.checked?Math.min(${ptsVal},r2(PAY.total-sum(PAY.pays,p=>p.amount))):0;drawPay()"><span></span></label></div>`:''}${PAY.pays.length?`<div class="sec-t">Payments taken</div>${PAY.pays.map((p,i)=>`<div class="paid-line">${ic(payIc[p.method],16)} ${p.method}${p.ref?` <span class="xs muted">${p.ref}</span>`:''}<b class="num">${money(p.amount)}</b><button onclick="PAY.pays.splice(${i},1);drawPay()" class="muted">${ic('x',14)}</button></div>`).join('')}`:''}${PAY.redeem?`<div class="paid-line" style="color:var(--pink)">${ic('star',16)} Points redeemed <b>${money(PAY.redeem)}</b></div>`:''}`;$('#pay-done').disabled=rem>.005;$('#pay-done').innerHTML=rem>.005?`Remaining ${money(rem)}`:`${ic('check',16,2.4)} Complete sale${change?' · change '+money(change):''}`;const a=$('#pay-amt');a&&setTimeout(()=>a.select(),30)}
-function addPay(){const amt=r2(+$('#pay-amt').value),m=PAY.method,rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null;if(!(amt>0))return toast('Enter an amount','warn');if(rem<=0)return toast('Already fully paid','info');let ref='';if(m!=='Cash'&&amt>rem+.001)return toast(`${m} cannot exceed the remaining ${money(rem)}`,'warn');if(m==='Gift card'){const g=S.giftcards.find(g=>g.code===$('#gc-code').value.trim().toUpperCase());if(!g)return toast('Gift card not found','err');if(g.bal<amt)return toast(`Gift card balance is only ${money(g.bal)}`,'err');ref=g.code}if(m==='On account'){if(!cu)return toast('Attach a customer first','warn');if(cu.credit+amt>cu.limit)return toast('Exceeds the customer’s credit limit','err')}PAY.pays.push({method:m,amount:amt,ref});drawPay()}
+function drawPay(){const rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null,change=rem<0?-rem:0;const def=Math.max(0,rem);const ptsVal=cu?r2(cu.points*S.settings.pointValue):0;$('#pay-b').innerHTML=`<div class="due"><div><small>AMOUNT DUE</small><b>${money(PAY.total)}</b></div><div style="text-align:right"><small>${change?'CHANGE DUE':'REMAINING'}</small><b style="color:${change?'#d5fd79':rem<=0?'#7ef0c4':'#fff'}">${money(change||Math.max(0,rem))}</b></div></div><div class="pm-grid">${METHODS.map(([m,i])=>`<button class="pm ${PAY.method===m?'on':''}" onclick="PAY.method='${m}';drawPay()">${ic(i,20)}${m}</button>`).join('')}</div><div class="fgrid" style="margin-top:16px">${PAY.method==='Gift card'?`<label class="field">Gift card code<input class="input" id="gc-code" placeholder="GC-XXXX-XXXX"></label>`:''}<label class="field ${PAY.method==='Gift card'?'':'full'}">Amount (${PAY.method})<div class="row"><input class="input num" id="pay-amt" type="number" step=".01" value="${def.toFixed(2)}" onkeydown="if(event.key==='Enter')addPay()"><button class="btn pri" onclick="addPay()" style="height:42px">${ic('plus',16,2.4)} Add</button></div></label></div>${PAY.method==='Cash'?`<div class="quick">${[def,Math.ceil(def/100)*100,Math.ceil(def/500)*500,Math.ceil(def/1000)*1000,5000].filter((v,i,a)=>v>0&&a.indexOf(v)===i).map(v=>`<button class="chip" onclick="$('#pay-amt').value=${v.toFixed(2)};addPay()">${money(v)}</button>`).join('')}</div>`:''}${PAY.method==='On account'?`<p class="xs muted" style="margin-top:10px">${cu?`Available credit: <b>${money(Math.max(0,cu.limit-cu.credit-sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount)))}</b> of ${money(cu.limit)} limit`:'⚠ Attach a customer to charge to their account.'}</p>`:''}${cu&&cu.points>=10?`<div class="alert" style="--c:var(--pink);margin-top:14px"><div class="fic" style="--c:var(--pink)">${ic('star',16)}</div><div style="flex:1"><b>Redeem loyalty points</b><small>${num(cu.points)} pts available · worth ${money(ptsVal)}</small></div><label class="switch"><input type="checkbox" ${PAY.redeem?'checked':''} onchange="PAY.redeem=this.checked?Math.min(${ptsVal},r2(PAY.total-sum(PAY.pays,p=>p.amount))):0;drawPay()"><span></span></label></div>`:''}${PAY.pays.length?`<div class="sec-t">Payments taken</div>${PAY.pays.map((p,i)=>`<div class="paid-line">${ic(payIc[p.method],16)} ${esc(p.method)}${p.ref?` <span class="xs muted">${esc(p.ref)}</span>`:''}<b class="num">${money(p.amount)}</b><button onclick="PAY.pays.splice(${i},1);drawPay()" class="muted">${ic('x',14)}</button></div>`).join('')}`:''}${PAY.redeem?`<div class="paid-line" style="color:var(--pink)">${ic('star',16)} Points redeemed <b>${money(PAY.redeem)}</b></div>`:''}`;$('#pay-done').disabled=rem>.005;$('#pay-done').innerHTML=rem>.005?`Remaining ${money(rem)}`:`${ic('check',16,2.4)} Complete sale${change?' · change '+money(change):''}`;const a=$('#pay-amt');a&&setTimeout(()=>a.select(),30)}
+function addPay(){
+  const amt=r2(+$('#pay-amt').value),m=PAY.method,rem=payRem(),cu=S.cart.customer?C(S.cart.customer):null;
+  if(!Number.isFinite(amt)||!(amt>0))return toast('Enter a valid amount','warn');
+  if(rem<=0)return toast('Already fully paid','info');
+  let ref='';
+  if(m!=='Cash'&&amt>rem+.001)return toast(`${m} cannot exceed the remaining ${money(rem)}`,'warn');
+  if(m==='Gift card'){
+    const code=$('#gc-code').value.trim().toUpperCase();
+    const g=S.giftcards.find(g=>g.code===code);
+    if(!g)return toast('Gift card not found','err');
+    if(g.exp&&new Date(g.exp)<new Date())return toast('Gift card has expired','err');
+    const alreadyUsed=sum(PAY.pays.filter(p=>p.method==='Gift card'&&p.ref===g.code),p=>p.amount);
+    const freeBal=r2(g.bal-alreadyUsed);
+    if(freeBal<amt-.001)return toast(`Gift card available balance is only ${money(Math.max(0,freeBal))}`,'err');
+    ref=g.code;
+  }
+  if(m==='On account'){
+    if(!cu)return toast('Attach a customer first','warn');
+    const alreadyAcc=sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount);
+    if(cu.credit+alreadyAcc+amt>cu.limit+.001)return toast('Exceeds the customer’s credit limit','err');
+  }
+  PAY.pays.push({method:m,amount:amt,ref});
+  drawPay();
+}
 function finishSale(){
+  if(!hasPerm('sale'))return toast('Permission denied','err');
   const t=calc(),cu=t.cust,rem=payRem();if(rem>.005)return;
   const short=t.items.filter(i=>i.qty>i.p.stock);if(short.length)return toast(`Cannot complete: only ${short[0].p.stock} × ${esc(short[0].p.name)} in stock now`,'err');
+  // Re-validate gift card balances and customer credit limits before committing (guards held sales)
+  const gcTotals={};
+  for(const p of PAY.pays){
+    if(p.method==='Gift card'){gcTotals[p.ref]=(gcTotals[p.ref]||0)+p.amount}
+  }
+  for(const [code,used] of Object.entries(gcTotals)){
+    const g=S.giftcards.find(x=>x.code===code);
+    if(!g||g.bal<used-.001)return toast(`Gift card ${esc(code)} no longer has enough balance`,'err');
+  }
+  const onAccCheck=sum(PAY.pays.filter(p=>p.method==='On account'),p=>p.amount);
+  if(onAccCheck>0&&(!cu||cu.credit+onAccCheck>cu.limit+.001))return toast('Customer credit limit exceeded','err');
+
   const cName=S.user?S.user.name:'Store Admin';
   const activeBranch=(S.user&&S.user.branch&&S.user.branch!=='All')?S.user.branch:(S.branches[0]?.id||'MAIN');
   const reg=S.registers.find(r=>r.branch===activeBranch&&r.open)||S.registers[0]||{id:'REG-01',cash:0,card:0,digital:0};
@@ -251,7 +339,8 @@ function finishSale(){
   if(PAY.redeem>0)pays.push({method:'Points',amount:PAY.redeem});
   const onAcc=sum(pays.filter(p=>p.method==='On account'),p=>p.amount);
   const earned=cu?Math.floor((t.total-PAY.redeem)*S.settings.pointsPer):0;
-  const o={id:'ORD-'+(1001+S.orders.length),inv:S.settings.invPrefix+(S.settings.nextInv++),time:new Date(),customer:cu?cu.name:'Walk-in customer',cid:cu?cu.id:null,items:t.items.map(i=>({id:i.id,name:i.p.name,emoji:i.p.emoji||'🛍️',qty:i.qty,price:i.p.price,disc:i.disc||0})),sub:t.sub,itemDisc:t.itemDisc,promo:t.promo,lines:t.lines,invDisc:t.invAmt,invLabel:S.cart.inv.code?'Coupon '+S.cart.inv.code:S.cart.inv.label||'Order discount',tax:t.tax,total:t.total,pays,change,status:onAcc>0?'On account':'Completed',cashier:cName,branch:activeBranch,reg:reg.id,refunded:0,channel:'In-store',earned,session:true};
+  const maxOrdNum=Math.max(1000,...S.orders.map(x=>parseInt(String(x.id).replace(/\D/g,''),10)||1000));
+  const o={id:'ORD-'+(maxOrdNum+1),inv:S.settings.invPrefix+(S.settings.nextInv++),time:new Date(),customer:cu?cu.name:'Walk-in customer',cid:cu?cu.id:null,items:t.items.map(i=>({id:i.id,name:i.p.name,emoji:i.p.emoji||'🛍️',qty:i.qty,price:i.p.price,disc:i.disc||0})),sub:t.sub,itemDisc:t.itemDisc,promo:t.promo,lines:t.lines,invDisc:t.invAmt,invLabel:S.cart.inv.code?'Coupon '+S.cart.inv.code:S.cart.inv.label||'Order discount',tax:t.tax,total:t.total,pays,change,status:onAcc>0?'On account':'Completed',cashier:cName,branch:activeBranch,reg:reg.id,refunded:0,channel:'In-store',earned,session:true};
   t.items.forEach(i=>{
     i.p.stock=Math.max(0,i.p.stock-i.qty);
     i.p.sold30=(i.p.sold30||0)+i.qty;
@@ -262,7 +351,7 @@ function finishSale(){
     if(p.method==='Cash')reg.cash=r2((reg.cash||0)+p.amount);
     else if(p.method==='Card')reg.card=r2((reg.card||0)+p.amount);
     else if(p.method==='Digital wallet'||p.method==='Bank transfer')reg.digital=r2((reg.digital||0)+p.amount);
-    if(p.method==='Gift card'){const g=S.giftcards.find(g=>g.code===p.ref);if(g)g.bal=r2(g.bal-p.amount)}
+    if(p.method==='Gift card'){const g=S.giftcards.find(g=>g.code===p.ref);if(g)g.bal=Math.max(0,r2(g.bal-p.amount))}
   });
   if(cu){
     cu.points=Math.max(0,cu.points+earned-Math.round(PAY.redeem/Math.max(.001,S.settings.pointValue)));
@@ -334,4 +423,41 @@ function orderDrawer(id){const o=S.orders.find(x=>x.id===id);if(!o)return;drawer
 function returnModal(id,exchange){const o=S.orders.find(x=>x.id===id);closeDrawer();setTimeout(()=>modal({title:exchange?'Exchange items':'Return & refund',sub:`${o.inv} · ${esc(o.customer)}`,icon:exchange?'swap':'undo',iconC:'var(--danger)',size:'lg',body:`<div class="tw"><table><thead><tr><th></th><th>Item</th><th>Sold</th><th>Return qty</th><th class="tr">Value</th></tr></thead><tbody>${o.items.map((i,k)=>{const left=i.qty-(i.returned||0);return `<tr><td><input type="checkbox" class="rt-c" data-k="${k}" ${left?'checked':'disabled'} onchange="rtCalc('${id}')"></td><td><b>${i.emoji||'🛍️'} ${esc(i.name)}</b></td><td>${i.qty}</td><td><select class="sel rt-q" data-k="${k}" style="width:80px;height:34px" onchange="rtCalc('${id}')" ${left?'':'disabled'}>${Array.from({length:left},(_,n)=>`<option ${n===left-1?'selected':''}>${n+1}</option>`).join('')||'<option>0</option>'}</select></td><td class="tr num">${money(i.price*(1-i.disc/100))} ea</td></tr>`}).join('')}</tbody></table></div><div class="fgrid mt"><label class="field">Reason<select class="sel" id="rt-r"><option>Changed mind</option><option>Damaged / faulty</option><option>Wrong item</option><option>Expired product</option><option>Other</option></select></label>${exchange?'<div></div>':`<label class="field">Refund to<select class="sel" id="rt-to"><option>Original tender</option><option>Store credit</option><option>Cash</option></select></label>`}<label class="row sm full" style="gap:10px"><label class="switch"><input type="checkbox" id="rt-s" checked><span></span></label> Return items to sellable stock</label></div><div class="due" style="margin:18px 0 0"><div><small>${exchange?'EXCHANGE CREDIT':'REFUND AMOUNT'}</small><b id="rt-v">${money(0)}</b></div><div class="xs" style="color:#aab0d3;max-width:200px;text-align:right">Refunds over ${money(S.settings.refundPinLimit)} need manager approval</div></div>`,foot:`<button class="btn" onclick="closeModal()">Cancel</button><button class="btn ${exchange?'pri':'danger'}" onclick="doReturn('${id}',${!!exchange})">${exchange?'Continue to new sale':'Process refund'}</button>`}),230);setTimeout(()=>rtCalc(id),300)}
 function rtSel(id){const o=S.orders.find(x=>x.id===id);return $$('.rt-c').filter(c=>c.checked).map(c=>{const k=+c.dataset.k;const q=+$(`.rt-q[data-k="${k}"]`).value;const i=o.items[k];return{k,q,amt:r2(q*i.price*(1-i.disc/100)*(o.total/Math.max(.01,o.sub-(o.itemDisc||0))||1))}})}
 function rtCalc(id){const v=$('#rt-v');if(v)v.textContent=money(Math.min(sum(rtSel(id),x=>x.amt),S.orders.find(x=>x.id===id).total))}
-function doReturn(id,exchange){const o=S.orders.find(x=>x.id===id);const sel=rtSel(id);if(!sel.length)return toast('Select at least one item','warn');const amt=r2(Math.min(sum(sel,x=>x.amt),o.total-o.refunded));const reason=$('#rt-r').value,to=exchange?'Exchange credit':$('#rt-to').value,restock=$('#rt-s').checked;const uName=S.user?S.user.name:'Store Admin';const run=()=>{sel.forEach(s=>{const i=o.items[s.k];i.returned=(i.returned||0)+s.q;if(restock&&S.products.some(p=>p.id===i.id)){P(i.id).stock+=s.q;S.movements.unshift({time:new Date(),pid:i.id,type:'Return',qty:s.q,reason:o.inv,user:uName})}});o.refunded=r2(o.refunded+amt);o.refunds=o.refunds||[];o.refunds.push({amt,reason,to,time:new Date(),exchange});o.status=o.items.every(i=>(i.returned||0)>=i.qty)?'Refunded':'Partially refunded';audit('refund',`${exchange?'Exchange':'Refund'} processed · ${o.inv}`,money(amt));if(exchange){S.cart.inv={type:'fixed',value:amt,code:'',label:'Exchange credit · '+o.inv};toast(`${money(amt)} exchange credit applied to new sale`);go('pos')}else{toast(`Refund of <b>${money(amt)}</b> processed to ${to.toLowerCase()}`);refresh()}};closeModal();if(amt>S.settings.refundPinLimit&&!isAdmin())setTimeout(()=>pinPrompt(`Authorise a ${money(amt)} ${exchange?'exchange':'refund'} on ${o.inv}`,run),220);else setTimeout(run,220)}
+function doReturn(id,exchange){
+  const o=S.orders.find(x=>x.id===id);const sel=rtSel(id);
+  if(!sel.length)return toast('Select at least one item','warn');
+  const amt=r2(Math.min(sum(sel,x=>x.amt),o.total-o.refunded));
+  const reason=$('#rt-r').value,to=exchange?'Exchange credit':$('#rt-to').value,restock=$('#rt-s').checked;
+  const uName=S.user?S.user.name:'Store Admin';
+  const run=()=>{
+    sel.forEach(s=>{
+      const i=o.items[s.k];
+      i.returned=(i.returned||0)+s.q;
+      if(restock&&S.products.some(p=>p.id===i.id)){
+        P(i.id).stock+=s.q;
+        S.movements.unshift({time:new Date(),pid:i.id,type:'Return',qty:s.q,reason:o.inv,user:uName});
+      }
+    });
+    o.refunded=r2(o.refunded+amt);
+    o.refunds=o.refunds||[];
+    o.refunds.push({amt,reason,to,time:new Date(),exchange});
+    o.status=o.items.every(i=>(i.returned||0)>=i.qty)?'Refunded':'Partially refunded';
+    if(!exchange&&to==='Cash'){
+      const reg=curReg();
+      if(reg)reg.cout=r2((reg.cout||0)+amt);
+    }
+    audit('refund',`${exchange?'Exchange':'Refund'} processed · ${o.inv}`,money(amt));
+    if(exchange){
+      S.cart.inv={type:'fixed',value:amt,code:'',label:'Exchange credit · '+o.inv};
+      toast(`${money(amt)} exchange credit applied to new sale`);
+      go('pos');
+    }else{
+      toast(`Refund of <b>${money(amt)}</b> processed to ${to.toLowerCase()}`);
+      refresh();
+    }
+  };
+  closeModal();
+  const needsMgr=!hasPerm('refund')||(amt>S.settings.refundPinLimit&&!isAdmin());
+  if(needsMgr)setTimeout(()=>pinPrompt(`Authorise a ${money(amt)} ${exchange?'exchange':'refund'} on ${o.inv}`,run),220);
+  else setTimeout(run,220);
+}

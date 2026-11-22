@@ -202,7 +202,7 @@ const DEMO_O=()=>S.orders[0]||{inv:S.settings.invPrefix+S.settings.nextInv,time:
 /* ================= DATABASE ================= */
 PAGES.database=()=>{
   const totalRecords=S.products.length+S.customers.length+S.orders.length+S.suppliers.length+S.pos.length+S.employees.length+S.movements.length+S.audit.length;
-  return `<div class="page">${head('Reliable infrastructure','Database & System','Connected with MongoDB Atlas & Vercel Serverless API — live cloud persistence.',`<button class="btn soft" onclick="resetDemoState(false)">${ic('refresh',16)} Load testing data</button><button class="btn danger" onclick="confirmBox('Clear all database data?','This will wipe all products, orders, customers and reset back to an empty workspace.',()=>resetDemoState(true),{danger:true,label:'Wipe & Reset'})">${ic('trash',16)} Wipe all data</button><button class="btn" onclick="importJSONPrompt()">${ic('upload',16)} Restore JSON</button><button class="btn" onclick="exportJSON()">${ic('download',16)} Full JSON backup</button><button class="btn pri" onclick="runBackup()">${ic('cloud',16)} Snapshot now</button>`)}<section class="grid g4 mb">${kpi('Database status',`<span style="font-size:18px;color:var(--success)">${window._cloudConnected?'MongoDB Live':'Local Ready'}</span>`,'','db','var(--success)',null,0,S.cloudStatus)}${kpi('Live records stored',cu(totalRecords),'','layers','var(--primary)',null,1,'across all collections')}${kpi('Products & Orders',`${S.products.length} / ${S.orders.length}`,'','package','var(--teal)',null,2,'SKUs / Invoices')}${kpi('Snapshots taken',cu(S.backups.length),'','cloud','var(--warning)',null,3,S.backups[0]?ago(S.backups[0].time):'No snapshot yet')}</section><div class="grid g-main mb"><section class="card pad rv" style="--i:4"><div class="ch"><div><h3>Backups & recovery</h3><p>Create manual or automated snapshots of your live MongoDB workspace</p></div></div><div id="bk-prog"></div>${S.backups.length?`<div class="tw"><table><thead><tr><th>Backup</th><th>Time</th><th>Type</th><th>Records</th><th>Status</th><th></th></tr></thead><tbody>${S.backups.map((b,i)=>`<tr class="rv" style="--i:${i}"><td><b>${b.id}</b></td><td>${fmtTime(b.time)}</td><td>${b.type}</td><td class="num">${b.size}</td><td>${statusBadge(b.status)}</td><td class="tr"><button class="btn xs" onclick="exportJSON()">${ic('download',13)} Download</button></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty" style="padding:28px"><div class="sm">No snapshots taken yet — click "Snapshot now" above to create a backup.</div></div>`}</section><section class="card pad rv" style="--i:5"><div class="ch"><div><h3>MongoDB Atlas & Vercel Status</h3><p>${esc(S.cloudStatus)}</p></div></div>${S.branches.map(b=>`<div class="li"><div class="fic" style="--c:${b.c}">${ic('refresh',15)}</div><div style="flex:1"><b class="sm">${esc(b.name)} (${b.id})</b><div class="xs muted">${b.orders} orders · ${money(b.rev)}</div></div><span class="badge ok dot live">Synced</span></div>`).join('')}<div class="sec-t">Live Collections Count</div><div class="kv"><div><small>Products</small><b>${S.products.length}</b></div><div><small>Orders</small><b>${S.orders.length}</b></div><div><small>Customers</small><b>${S.customers.length}</b></div><div><small>Suppliers & POs</small><b>${S.suppliers.length} / ${S.pos.length}</b></div></div></section></div><div class="grid g2"><section class="card pad rv" style="--i:6"><div class="ch"><div><h3>Import / export</h3><p>Excel, CSV, JSON and PDF</p></div></div><div class="grid g2" style="gap:10px">${[['Import products (CSV)','upload',"importCSVPrompt()"],['Restore backup (JSON)','upload',"importJSONPrompt()"],['Export sales (CSV)','download',"exportOrders()"],['Export customers (CSV)','download',"go('customers')"],['Export reports (PDF)','printer',"go('reports')"],['Full backup (JSON)','db',"exportJSON()"]].map(x=>`<button class="btn" style="justify-content:flex-start;height:48px" onclick="${x[2]}">${ic(x[1],16)} ${x[0]}</button>`).join('')}</div></section><section class="card pad rv" style="--i:7"><div class="ch"><div><h3>API Endpoints</h3><p>Live Vercel + MongoDB Atlas endpoints</p></div></div>${[['GET','/api/state','Load live workspace from MongoDB Atlas'],['POST','/api/state','Save live workspace to MongoDB Atlas'],['DELETE','/api/state','Reset live workspace in MongoDB Atlas']].map(a=>`<div class="li" style="font-family:monospace;font-size:12.5px"><span class="badge ${a[0]==='GET'?'ok':a[0]==='POST'?'pri':'bad'}" style="width:64px;justify-content:center">${a[0]}</span><span style="flex:1">${a[1]}</span><span class="xs muted" style="font-family:Inter">${a[2]}</span></div>`).join('')}</section></div>${foot()}</div>`;
+  return `<div class="page">${head('Reliable infrastructure','Database & System','Connected with MongoDB Atlas & Vercel Serverless API — live cloud persistence.',`<button class="btn soft" onclick="resetDemoState(false)">${ic('refresh',16)} Load testing data</button><button class="btn danger" onclick="confirmBox('Clear all database data?','This will wipe all products, orders, customers and reset back to an empty workspace.',()=>resetDemoState(true),{danger:true,label:'Wipe & Reset'})">${ic('trash',16)} Wipe all data</button><button class="btn" onclick="importJSONPrompt()">${ic('upload',16)} Restore JSON</button><button class="btn" onclick="exportJSON()">${ic('download',16)} Full JSON backup</button><button class="btn pri" onclick="runBackup()">${ic('cloud',16)} Snapshot now</button>`)}<section class="grid g4 mb">${kpi('Database status',`<span style="font-size:18px;color:var(--success)">${window._cloudConnected?'MongoDB Live':'Local Ready'}</span>`,'','db','var(--success)',null,0,S.cloudStatus)}${kpi('Live records stored',cu(totalRecords),'','layers','var(--primary)',null,1,'across all collections')}${kpi('Products & Orders',`${S.products.length} / ${S.orders.length}`,'','package','var(--teal)',null,2,'SKUs / Invoices')}${kpi('Snapshots taken',cu(S.backups.length),'','cloud','var(--warning)',null,3,S.backups[0]?ago(S.backups[0].time):'No snapshot yet')}</section><div class="grid g-main mb"><section class="card pad rv" style="--i:4"><div class="ch"><div><h3>Backups & recovery</h3><p>Create manual or automated snapshots of your live MongoDB workspace</p></div></div><div id="bk-prog"></div>${S.backups.length?`<div class="tw"><table><thead><tr><th>Backup</th><th>Time</th><th>Type</th><th>Records</th><th>Status</th><th></th></tr></thead><tbody>${S.backups.map((b,i)=>`<tr class="rv" style="--i:${i}"><td><b>${b.id}</b></td><td>${fmtTime(b.time)}</td><td>${b.type}</td><td class="num">${b.size}</td><td>${statusBadge(b.status)}</td><td class="tr"><button class="btn xs" onclick="exportJSON()">${ic('download',13)} Download</button></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty" style="padding:28px"><div class="sm">No snapshots taken yet — click "Snapshot now" above to create a backup.</div></div>`}</section><section class="card pad rv" style="--i:5"><div class="ch"><div><h3>MongoDB Atlas & Vercel Status</h3><p>${esc(S.cloudStatus)}</p></div></div>${S.branches.map(b=>`<div class="li"><div class="fic" style="--c:${b.c}">${ic('refresh',15)}</div><div style="flex:1"><b class="sm">${esc(b.name)} (${b.id})</b><div class="xs muted">${b.orders} orders · ${money(b.rev)}</div></div><span class="badge ok dot live">Synced</span></div>`).join('')}<div class="sec-t">Live Collections Count</div><div class="kv"><div><small>Products</small><b>${S.products.length}</b></div><div><small>Orders</small><b>${S.orders.length}</b></div><div><small>Customers</small><b>${S.customers.length}</b></div><div><small>Suppliers & POs</small><b>${S.suppliers.length} / ${S.pos.length}</b></div></div></section></div><div class="grid g2"><section class="card pad rv" style="--i:6"><div class="ch"><div><h3>Import / export</h3><p>Excel, CSV, JSON and PDF</p></div></div><div class="grid g2" style="gap:10px">${[['Import products (CSV)','upload',"importCSVPrompt()"],['Restore backup (JSON)','upload',"importJSONPrompt()"],['Export sales (CSV)','download',"exportOrders()"],['Export customers (CSV)','download',"go('customers')"],['Export reports (PDF)','printer',"go('reports')"],['Full backup (JSON)','db',"exportJSON()"]].map(x=>`<button class="btn" style="justify-content:flex-start;height:48px" onclick="${x[2]}">${ic(x[1],16)} ${x[0]}</button>`).join('')}</div></section><section class="card pad rv" style="--i:7"><div class="ch"><div><h3>API Endpoints</h3><p>Live Vercel + MongoDB Atlas endpoints</p></div></div>${[['POST','/api/auth','Server-side SHA-256 Auth & HMAC Session'],['GET','/api/state','Load authenticated workspace from MongoDB'],['POST','/api/state','Save workspace with RBAC & concurrency check'],['DELETE','/api/state','Owner-only workspace reset']].map(a=>`<div class="li" style="font-family:monospace;font-size:12.5px"><span class="badge ${a[0]==='GET'?'ok':a[0]==='POST'?'pri':'bad'}" style="width:64px;justify-content:center">${a[0]}</span><span style="flex:1">${a[1]}</span><span class="xs muted" style="font-family:Inter">${a[2]}</span></div>`).join('')}</section></div>${foot()}</div>`;
 };
 function importJSONPrompt(){
   if(!isAdmin())return toast('Only Super Admin can restore database backups','err');
@@ -210,16 +210,20 @@ function importJSONPrompt(){
 }
 function importJSONFile(file){
   if(!file)return;
+  if(!isAdmin())return toast('Only Store Admin (Owner) can restore backups','err');
+  if(file.size>5*1024*1024)return toast('Backup file exceeds 5 MB limit','err');
   const rd=new FileReader();
   rd.onload=()=>{
     try{
-      const snap=reviveDates(JSON.parse(rd.result));
+      const raw=JSON.parse(rd.result,(k,v)=>(k==='__proto__'||k==='constructor'||k==='prototype')?undefined:v);
+      const snap=reviveDates(raw);
       if(snap.purchaseOrders&&!snap.pos)snap.pos=snap.purchaseOrders;
       PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
       ensureAdminAccount();
       updateBranchSelect();
       closeModal();
       audit('settings','Database restored from JSON backup',file.name);
+      saveState(true);
       toast('Backup restored and synced to MongoDB Atlas');
       refresh();
     }catch(e){
@@ -245,7 +249,12 @@ function runBackup(){
     b.style.width=p+'%';$('#bk-p').textContent=Math.round(p)+'%';
   },180);
 }
-function exportJSON(){const data={exported:new Date(),settings:S.settings,products:S.products,customers:S.customers,orders:S.orders,suppliers:S.suppliers,purchaseOrders:S.pos,promotions:S.promotions,employees:S.employees,branches:S.branches,registers:S.registers};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='monarch-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();toast('Full data export downloaded')}
+function exportJSON(){
+  const safeEmps=(S.employees||[]).map(({password,pin,passwordHash,pinHash,newPassword,newPin,...rest})=>rest);
+  const safeSettings={...(S.settings||{})};delete safeSettings.managerPin;
+  const data={exported:new Date(),settings:safeSettings,products:S.products,customers:S.customers,orders:S.orders,suppliers:S.suppliers,purchaseOrders:S.pos,promotions:S.promotions,employees:safeEmps,branches:S.branches,registers:S.registers};
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='monarch-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();toast('Sanitized data backup downloaded (credentials excluded)');
+}
 
 /* ================= AI (100% LIVE FROM REAL CATALOG & ORDERS) ================= */
 function reorders(){
@@ -497,48 +506,69 @@ function openAuthScreen(locked=false){
   </div>`;
   setTimeout(()=>{const inp=$('#au-email');if(inp)inp.focus()},60);
 }
-function authKey(k){
+let _authBusy=false;
+async function authKey(k){
+  if(_authBusy)return;
   if(k==='clear')AUTH.pin='';
   else if(k==='back')AUTH.pin=AUTH.pin.slice(0,-1);
   else if(AUTH.pin.length<4)AUTH.pin+=k;
   const dots=$$('#pin-dots .pin-dot');
   dots.forEach((d,i)=>d.classList.toggle('on',i<AUTH.pin.length));
   if(AUTH.pin.length===4){
-    const match=S.employees.find(e=>e.pin===AUTH.pin&&e.active!==false);
-    if(match){
-      setTimeout(()=>completeSignIn(match,'POS PIN Pad'),140);
-    }else{
-      dots.forEach(d=>{d.classList.remove('on');d.classList.add('err')});
-      S.logins.unshift({who:'PIN Attempt',role:'—',ip:'Live Terminal',dev:'POS PIN Pad',time:new Date(),ok:false});
-      saveState();
-      toast('Invalid 4-digit POS PIN','err');
-      setTimeout(()=>{AUTH.pin='';dots.forEach(d=>d.classList.remove('err'))},520);
+    _authBusy=true;
+    try{
+      const r=await apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'pin',pin:AUTH.pin})});
+      const d=await r.json().catch(()=>null);
+      if(r.ok&&d&&d.ok&&d.user){
+        if(d.token)setSessionToken(d.token);
+        _authBusy=false;
+        setTimeout(()=>completeSignIn(d.user,'POS PIN Pad'),120);
+        return;
+      }
+      dots.forEach(dot=>{dot.classList.remove('on');dot.classList.add('err')});
+      toast((d&&d.error)||'Invalid 4-digit POS PIN','err');
+      setTimeout(()=>{AUTH.pin='';_authBusy=false;dots.forEach(dot=>dot.classList.remove('err'))},520);
+    }catch{
+      _authBusy=false;AUTH.pin='';
+      dots.forEach(dot=>dot.classList.remove('on'));
+      toast('Could not reach authentication server','err');
     }
   }
 }
-function submitEmailAuth(){
+async function submitEmailAuth(){
+  if(_authBusy)return;
   const em=($('#au-email')?.value||'').trim().toLowerCase();
   const pw=($('#au-pass')?.value||'').trim();
-  const u=S.employees.find(e=>(e.email.toLowerCase()===em||(e.altEmail&&e.altEmail.toLowerCase()===em))&&e.active!==false);
-  if(!u||(u.password||'admin123')!==pw){
-    S.logins.unshift({who:u?u.name:em||'Unknown',role:u?u.role:'—',ip:'Live Client',dev:'Email Login',time:new Date(),ok:false});
-    saveState();
-    return toast('Invalid email or password','err');
+  if(!em||!pw)return toast('Enter email and password','warn');
+  _authBusy=true;
+  try{
+    const r=await apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'login',email:em,password:pw})});
+    const d=await r.json().catch(()=>null);
+    _authBusy=false;
+    if(r.ok&&d&&d.ok&&d.user){
+      if(d.token)setSessionToken(d.token);
+      completeSignIn(d.user,'Email & Password');
+      return;
+    }
+    toast((d&&d.error)||'Invalid email or password','err');
+  }catch{
+    _authBusy=false;
+    toast('Could not reach authentication server','err');
   }
-  completeSignIn(u,'Email & Password');
 }
 function completeSignIn(emp,dev='POS Terminal'){
-  S.user={id:emp.id,name:emp.name,role:emp.role,branch:emp.branch,email:emp.email,pin:emp.pin};
+  S.user={id:emp.id,name:emp.name,role:emp.role,branch:emp.branch||'All',email:emp.email};
   const real=S.employees.find(e=>e.id===emp.id);
   if(real){real.onShift=true;real.last=new Date()}
-  try{localStorage.setItem('monarch_live_user_v2',JSON.stringify(S.user))}catch(e){}
   S.logins.unshift({who:emp.name,role:emp.role,ip:'Live Session',dev,time:new Date(),ok:true});
-  audit('login',`Signed in via ${dev}`,emp.role);
   updateUserChip();
   const ov=$('#auth-ov');
   if(ov){ov.classList.add('out');setTimeout(()=>$('#auth-root').innerHTML='',320)}
-  toast(`Welcome, <b>${esc(emp.name)}</b> (${emp.role})`);
-  render(S.page,true);
+  toast(`Welcome, <b>${esc(emp.name)}</b> (${esc(emp.role)})`);
+  syncCloudState().then(()=>{
+    audit('login',`Signed in via ${dev}`,emp.role);
+    render(S.page,true);
+  });
 }
 function lockPOS(){
   $('#pop-root').innerHTML='';
@@ -550,9 +580,10 @@ function signOutUser(){
   $('#pop-root').innerHTML='';
   const prev=S.user?S.user.name:'User';
   audit('login','Signed out',prev);
+  apiFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'logout'})}).catch(()=>{});
   S.user=null;
+  setSessionToken('');
   AUTH.mode='email';
-  try{localStorage.removeItem('monarch_live_user_v2')}catch(e){}
   openAuthScreen(false);
 }
 function openUserMenu(e){
@@ -608,9 +639,12 @@ const _refresh=refresh;refresh=function(){
   if(S.page==='ai')typeBrief(false);
 };
 
-(function init(){
+(async function init(){
   try{
-    if(localStorage.getItem('mon-theme')==='dark')document.documentElement.dataset.theme='dark';
+    if(localStorage.getItem('mon-theme')==='dark'){
+      document.documentElement.dataset.theme='dark';
+      const mt=$('#meta-theme');if(mt)mt.setAttribute('content','#070914');
+    }
     if(localStorage.getItem('mon-col')==='1')document.body.classList.add('collapsed');
   }catch(e){}
   $$('[data-ic]').forEach(el=>el.innerHTML=ic(el.dataset.ic,+el.dataset.s||18));
@@ -621,7 +655,22 @@ const _refresh=refresh;refresh=function(){
   let first='';
   try{first=location.hash.slice(1)}catch(e){}
   render(PAGES[first]?first:'overview');
-  if(!S.user)openAuthScreen(false);
+
+  try{
+    const r=await apiFetch('/api/auth',{method:'GET'});
+    const d=await r.json().catch(()=>null);
+    if(r.ok&&d&&d.ok&&d.user){
+      S.user=d.user;
+      updateUserChip();
+      syncCloudState();
+    }else{
+      S.user=null;setSessionToken('');
+      openAuthScreen(false);
+    }
+  }catch{
+    if(!S.user)openAuthScreen(false);
+  }
+
   setTimeout(()=>{$('#splash').classList.add('out');countUps($('#view'));typeOverview(true);if(S.page==='ai')typeBrief(true)},1150);
   setTimeout(()=>$('#splash')?.remove(),1900);
 })();

@@ -1,65 +1,109 @@
 // Vercel Serverless Function + MongoDB Atlas Persistence Handler (/api/state)
-const { MongoClient } = require('mongodb');
+const {
+  PERSIST_KEYS,
+  OWNER_ONLY_KEYS,
+  verifySession,
+  setSecurityHeaders,
+  stripDangerousKeys,
+  loadWorkspaceDoc,
+  saveWorkspaceDoc,
+  deleteWorkspaceDoc,
+  normalizeEmployeeCreds,
+  sanitizeStateForClient
+} = require('./_security');
 
-let cachedClient = null;
-let memoryState = null;
-
-function getMongoUri() {
-  // Credentials must come from environment variables (Vercel → Settings → Environment Variables).
-  // Never hard-code them: this repository is public.
-  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
-  const { MONGODB_USERNAME: u, MONGODB_PASSWORD: p, MONGODB_HOST: h } = process.env;
-  return u && p && h ? `mongodb+srv://${encodeURIComponent(u)}:${encodeURIComponent(p)}@${h}` : null;
-}
-
-async function getMongoCollection() {
-  const uri = getMongoUri();
-  if (!uri) return null;
-  if (!cachedClient) {
-    cachedClient = new MongoClient(uri, { serverSelectionTimeoutMS: 6000 });
-    await cachedClient.connect();
-  }
-  const dbName = process.env.MONGODB_DB || 'monarch_pos';
-  return cachedClient.db(dbName).collection('live_workspace_v2');
-}
+const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2 MB cap
 
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setSecurityHeaders(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const col = await getMongoCollection();
+    // Require a valid server-signed session for all state operations
+    const session = verifySession(req);
+    if (!session) {
+      return res.status(401).json({ ok: false, error: 'Authentication required' });
+    }
+
+    const { col, doc } = await loadWorkspaceDoc();
+
     if (req.method === 'GET') {
-      if (col) {
-        const doc = await col.findOne({ _id: 'monarch_live' });
-        return res.status(200).json({ ok: true, mongo: true, state: doc ? doc.state : null });
-      }
-      return res.status(200).json({ ok: true, mongo: false, state: memoryState });
+      const safe = doc && doc.state ? sanitizeStateForClient(doc.state) : null;
+      return res.status(200).json({ ok: true, mongo: !!col, rev: (doc && doc.rev) || 0, state: safe });
     }
+
     if (req.method === 'POST') {
-      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-      if (col) {
-        await col.updateOne(
-          { _id: 'monarch_live' },
-          { $set: { state: body, updatedAt: new Date() } },
-          { upsert: true }
-        );
-        return res.status(200).json({ ok: true, mongo: true });
+      const raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
+      if (raw.length > MAX_PAYLOAD_BYTES) {
+        return res.status(413).json({ ok: false, error: 'Payload exceeds 2 MB limit' });
       }
-      memoryState = body;
-      return res.status(200).json({ ok: true, mongo: false });
+      const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      if (!parsed || typeof parsed !== 'object') {
+        return res.status(400).json({ ok: false, error: 'Invalid JSON body' });
+      }
+
+      const existingState = (doc && doc.state) || {};
+      const serverRev = (doc && doc.rev) || 0;
+      const clientRev = typeof parsed._rev === 'number' ? parsed._rev : null;
+      const force = !!parsed._force;
+
+      // Optimistic concurrency control: prevent silent overwrite across multiple registers
+      if (!force && clientRev !== null && serverRev > 0 && clientRev < serverRev) {
+        return res.status(409).json({
+          ok: false,
+          conflict: true,
+          rev: serverRev,
+          state: sanitizeStateForClient(existingState),
+          error: 'Workspace was updated by another register. Syncing latest state.'
+        });
+      }
+
+      // Whitelist only allowed top-level state keys & strip prototype pollution keys
+      const incoming = stripDangerousKeys(parsed);
+      const nextState = {};
+      const isOwner = session.role === 'Owner';
+
+      for (const key of PERSIST_KEYS) {
+        if (!isOwner && OWNER_ONLY_KEYS.includes(key) && existingState[key] !== undefined) {
+          // Server-side RBAC: non-Owner cannot overwrite employees, roles, matrix, or system settings
+          nextState[key] = existingState[key];
+          continue;
+        }
+        if (incoming[key] !== undefined) {
+          nextState[key] = incoming[key];
+        } else if (existingState[key] !== undefined) {
+          nextState[key] = existingState[key];
+        }
+      }
+
+      // Hash & preserve employee credentials server-side; never persist plaintext passwords/PINs
+      if (Array.isArray(nextState.employees)) {
+        const prevEmps = Array.isArray(existingState.employees) ? existingState.employees : [];
+        nextState.employees = nextState.employees.map(emp => {
+          const prev = prevEmps.find(x => x.id === emp.id || (x.email && emp.email && x.email.toLowerCase() === emp.email.toLowerCase()));
+          return normalizeEmployeeCreds(emp, prev);
+        });
+      }
+      if (nextState.settings && typeof nextState.settings === 'object') {
+        delete nextState.settings.managerPin;
+      }
+
+      const nextRev = serverRev + 1;
+      await saveWorkspaceDoc(col, nextState, nextRev);
+      return res.status(200).json({ ok: true, mongo: !!col, rev: nextRev });
     }
+
     if (req.method === 'DELETE') {
-      if (col) {
-        await col.deleteOne({ _id: 'monarch_live' });
+      if (session.role !== 'Owner') {
+        return res.status(403).json({ ok: false, error: 'Owner role required to wipe workspace' });
       }
-      memoryState = null;
-      return res.status(200).json({ ok: true, mongo: !!col });
+      await deleteWorkspaceDoc(col);
+      return res.status(200).json({ ok: true, mongo: !!col, rev: 0 });
     }
+
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
+    console.error('[api/state] Error:', err && err.message);
+    return res.status(500).json({ ok: false, error: 'Database operation failed' });
   }
 };

@@ -131,7 +131,6 @@ const S={
    pointValue:1,
    discountAlert:20,
    refundPinLimit:500,
-   managerPin:'1234',
    autoBackup:true,
    twoFA:true,
    sessionTimeout:30,
@@ -140,6 +139,7 @@ const S={
  branch:'All branches',
  page:'overview',
  user:null,
+ _rev:0,
  products:[],
  customers:[],
  orders:[],
@@ -174,12 +174,13 @@ const S={
 };
 
 function seedInitialData(emptyOnly=false){
+  // Credentials (passwords & PINs) are stored as salted SHA-256 hashes server-side only — never in browser JS.
   S.employees=[
-    {id:1,name:'Store Admin',role:'Owner',branch:'All',onShift:true,pin:'1234',password:'admin123',sales:0,txns:0,comm:0,last:new Date(),email:'admin@monarchpos.com',active:true},
+    {id:1,name:'Store Admin',role:'Owner',branch:'All',onShift:true,hasPin:true,sales:0,txns:0,comm:0,last:new Date(),email:'admin@monarchpos.com',active:true},
     ...(emptyOnly?[]:[
-      {id:2,name:'Sarah Khan',role:'Manager',branch:'MAIN',onShift:true,pin:'2222',password:'manager123',sales:0,txns:0,comm:1.5,last:new Date(Date.now()-1800e3),email:'sarah@monarchpos.com',active:true},
-      {id:3,name:'Bilal Ahmed',role:'Cashier',branch:'MAIN',onShift:true,pin:'3333',password:'cashier123',sales:0,txns:0,comm:1.0,last:new Date(Date.now()-3600e3),email:'bilal@monarchpos.com',active:true},
-      {id:4,name:'Usman Ali',role:'Cashier',branch:'CITY',onShift:false,pin:'4444',password:'cashier123',sales:0,txns:0,comm:1.0,last:new Date(Date.now()-14400e3),email:'usman@monarchpos.com',active:true}
+      {id:2,name:'Sarah Khan',role:'Manager',branch:'MAIN',onShift:true,hasPin:true,sales:0,txns:0,comm:1.5,last:new Date(Date.now()-1800e3),email:'sarah@monarchpos.com',active:true},
+      {id:3,name:'Bilal Ahmed',role:'Cashier',branch:'MAIN',onShift:true,hasPin:true,sales:0,txns:0,comm:1.0,last:new Date(Date.now()-3600e3),email:'bilal@monarchpos.com',active:true},
+      {id:4,name:'Usman Ali',role:'Cashier',branch:'CITY',onShift:false,hasPin:true,sales:0,txns:0,comm:1.0,last:new Date(Date.now()-14400e3),email:'usman@monarchpos.com',active:true}
     ])
   ];
   S.branches=emptyOnly?[
@@ -233,12 +234,12 @@ function seedInitialData(emptyOnly=false){
   ];
 
   S.customers=[
-    {id:1,name:'Zainab Tariq',phone:'+92 300 4128901',email:'zainab.t@example.com',tier:'Platinum',group:'VIP',points:4650,spent:68400,visits:19,credit:0,limit:50000,birthday:'1994-11-28'},
-    {id:2,name:'Kamran Siddiqui',phone:'+92 321 9841200',email:'kamran.s@example.com',tier:'Gold',group:'Retail',points:2180,spent:34900,visits:11,credit:2400,limit:25000,birthday:'1989-12-05'},
-    {id:3,name:'Ayesha Malik',phone:'+92 333 5512098',email:'ayesha.m@example.com',tier:'Platinum',group:'VIP',points:5120,spent:82500,visits:24,credit:0,limit:50000,birthday:'1996-11-25'},
-    {id:4,name:'Hassan Raza',phone:'+92 345 7712304',email:'hassan.r@example.com',tier:'Gold',group:'Trade',points:1840,spent:29600,visits:9,credit:4500,limit:40000,birthday:'1991-04-14'},
-    {id:5,name:'Nadia Farooq',phone:'+92 312 6639011',email:'nadia.f@example.com',tier:'Silver',group:'Retail',points:790,spent:12800,visits:5,credit:0,limit:15000,birthday:'1998-08-19'},
-    {id:6,name:'Omar Sheikh',phone:'+92 301 8845120',email:'omar.s@example.com',tier:'Silver',group:'Wholesale',points:1120,spent:21400,visits:7,credit:0,limit:60000,birthday:'1987-02-10'}
+    {id:1,name:'Zainab Tariq',phone:'+92 300 4128901',email:'zainab.t@example.com',tier:'Platinum',group:'VIP',points:4650,spent:68400,visits:19,credit:0,limit:50000,birthday:'1994-11-28',since:new Date(Date.now()-240*DAY)},
+    {id:2,name:'Kamran Siddiqui',phone:'+92 321 9841200',email:'kamran.s@example.com',tier:'Gold',group:'Retail',points:2180,spent:34900,visits:11,credit:2400,limit:25000,birthday:'1989-12-05',since:new Date(Date.now()-180*DAY)},
+    {id:3,name:'Ayesha Malik',phone:'+92 333 5512098',email:'ayesha.m@example.com',tier:'Platinum',group:'VIP',points:5120,spent:82500,visits:24,credit:0,limit:50000,birthday:'1996-11-25',since:new Date(Date.now()-310*DAY)},
+    {id:4,name:'Hassan Raza',phone:'+92 345 7712304',email:'hassan.r@example.com',tier:'Gold',group:'Trade',points:1840,spent:29600,visits:9,credit:4500,limit:40000,birthday:'1991-04-14',since:new Date(Date.now()-150*DAY)},
+    {id:5,name:'Nadia Farooq',phone:'+92 312 6639011',email:'nadia.f@example.com',tier:'Silver',group:'Retail',points:790,spent:12800,visits:5,credit:0,limit:15000,birthday:'1998-08-19',since:new Date(Date.now()-90*DAY)},
+    {id:6,name:'Omar Sheikh',phone:'+92 301 8845120',email:'omar.s@example.com',tier:'Silver',group:'Wholesale',points:1120,spent:21400,visits:7,credit:0,limit:60000,birthday:'1987-02-10',since:new Date(Date.now()-120*DAY)}
   ];
 
   S.suppliers=[
@@ -262,13 +263,13 @@ function seedInitialData(emptyOnly=false){
   ];
 
   S.giftcards=[
-    {code:'GC-8841-2090',to:'Zainab Tariq',initial:10000,bal:6500,active:true,issued:new Date(Date.now()-10*DAY)},
-    {code:'GC-5520-9914',to:'Ayesha Malik',initial:5000,bal:5000,active:true,issued:new Date(Date.now()-3*DAY)}
+    {code:'GC-8841-2090',to:'Zainab Tariq',init:10000,bal:6500,active:true,exp:new Date(Date.now()+320*DAY),c1:'#6a5cf6',c2:'#3a2bc4'},
+    {code:'GC-5520-9914',to:'Ayesha Malik',init:5000,bal:5000,active:true,exp:new Date(Date.now()+350*DAY),c1:'#14b8a6',c2:'#0e7490'}
   ];
 
   S.coupons=[
-    {code:'WELCOME10',pct:10,uses:24,max:200,active:true},
-    {code:'MART20',pct:20,uses:9,max:50,active:true}
+    {code:'WELCOME10',pct:10,uses:24,limit:200,active:true,exp:new Date(Date.now()+90*DAY)},
+    {code:'MART20',pct:20,uses:9,limit:50,active:true,exp:new Date(Date.now()+45*DAY)}
   ];
 
   S.online=[
@@ -374,7 +375,17 @@ function seedInitialData(emptyOnly=false){
 
 const P=id=>S.products.find(p=>p.id===+id)||{id:0,name:'Deleted item',cat:'Grocery',price:0,cost:0,wholesale:0,stock:0,min:0,max:100,emoji:'📦',expiry:0,sold30:0,sku:'—',barcode:'—',batch:'—',variants:[],extraBarcodes:[]};
 const C=id=>S.customers.find(c=>c.id===+id);
-const isAdmin=()=>!S.user||S.user.role==='Owner';
+const isAdmin=()=>!!(S.user&&S.user.role==='Owner');
+const hasPerm=k=>{if(!S.user)return false;if(S.user.role==='Owner')return true;return (S.matrix[S.user.role]||'').split(' ').includes(k)};
+
+function getSessionToken(){try{return sessionStorage.getItem('monarch_sess_token')||''}catch{return ''}}
+function setSessionToken(t){try{if(t)sessionStorage.setItem('monarch_sess_token',t);else sessionStorage.removeItem('monarch_sess_token')}catch{}}
+function apiFetch(url,opts={}){
+  const headers={'Content-Type':'application/json',...(opts.headers||{})};
+  const tok=getSessionToken();
+  if(tok)headers['Authorization']='Bearer '+tok;
+  return fetch(url,{...opts,headers,credentials:'same-origin'});
+}
 
 function syncLiveStats(){
   const validOrders=S.orders.filter(o=>o.status!=='Refunded');
@@ -397,7 +408,7 @@ function syncLiveStats(){
   });
 }
 
-/* ================= PERSISTENCE (LocalStorage + MongoDB Atlas API) ================= */
+/* ================= PERSISTENCE (Authenticated MongoDB Atlas API + Safe Local Cache) ================= */
 const PERSIST_KEYS=['settings','products','customers','orders','suppliers','pos','branches','transfers','employees','registers','zreports','promotions','giftcards','coupons','audit','movements','online','devices','backups','suspicious','waste','approvals','logins','notifs','held','roles','matrix','notifPrefs'];
 function reviveDates(obj){
   if(!obj||typeof obj!=='object')return obj;
@@ -413,23 +424,19 @@ function scrubPersonalName(str){
   return str.replace(/faizan\s*rizwan/gi,'Store Admin').replace(/faizan/gi,'Store Admin');
 }
 function ensureAdminAccount(){
-  // If database has 0 products (from previous blank state), auto-populate testing store data
-  if(!Array.isArray(S.products)||S.products.length===0){
-    seedInitialData(false);
-  }
   if(!Array.isArray(S.employees))S.employees=[];
-  // Scrub any personal name occurrences across all collections
   if(S.settings&&S.settings.email&&S.settings.email.toLowerCase().includes('faizan'))S.settings.email='admin@monarchpos.com';
+  if(S.settings)delete S.settings.managerPin;
   S.employees.forEach(e=>{
     if(e.name&&/faizan/i.test(e.name))e.name='Store Admin';
     if(e.email&&/faizan/i.test(e.email))e.email='admin@monarchpos.com';
+    e.hasPin=true;
+    delete e.password;
+    delete e.pin;
+    delete e.passwordHash;
+    delete e.pinHash;
     delete e.altEmail;
   });
-  if(S.user){
-    if(S.user.name&&/faizan/i.test(S.user.name))S.user.name='Store Admin';
-    if(S.user.email&&/faizan/i.test(S.user.email))S.user.email='admin@monarchpos.com';
-    try{localStorage.setItem('monarch_live_user_v2',JSON.stringify(S.user))}catch(e){}
-  }
   (S.branches||[]).forEach(b=>{if(b.manager&&/faizan/i.test(b.manager))b.manager='Store Admin'});
   (S.registers||[]).forEach(r=>{if(r.cashier&&/faizan/i.test(r.cashier))r.cashier='Store Admin'});
   (S.orders||[]).forEach(o=>{if(o.cashier&&/faizan/i.test(o.cashier))o.cashier='Store Admin'});
@@ -437,30 +444,22 @@ function ensureAdminAccount(){
   (S.movements||[]).forEach(m=>{if(m.user&&/faizan/i.test(m.user))m.user='Store Admin'});
   (S.logins||[]).forEach(l=>{if(l.who&&/faizan/i.test(l.who))l.who='Store Admin'});
   (S.waste||[]).forEach(w=>{if(w.user&&/faizan/i.test(w.user))w.user='Store Admin'});
+  // Normalize seeded giftcards/coupons if older schema is loaded
+  (S.giftcards||[]).forEach((g,i)=>{
+    if(g.init===undefined)g.init=g.initial||g.bal||0;
+    if(!g.exp)g.exp=new Date(Date.now()+365*DAY);
+    if(!g.c1){const pal=[['#6a5cf6','#3a2bc4'],['#14b8a6','#0e7490']][i%2];g.c1=pal[0];g.c2=pal[1]}
+  });
+  (S.coupons||[]).forEach(c=>{
+    if(c.limit===undefined)c.limit=c.max||100;
+    if(!c.exp)c.exp=new Date(Date.now()+60*DAY);
+  });
+  (S.customers||[]).forEach(c=>{if(!c.since)c.since=new Date(Date.now()-90*DAY)});
 
   let adm=S.employees.find(e=>e.role==='Owner'||(e.email&&e.email.toLowerCase()==='admin@monarchpos.com'));
   if(!adm){
-    adm={
-      id:1,
-      name:'Store Admin',
-      role:'Owner',
-      branch:'All',
-      onShift:true,
-      pin:S.settings?.managerPin||'1234',
-      password:'admin123',
-      sales:0,
-      txns:0,
-      comm:0,
-      last:new Date(),
-      email:'admin@monarchpos.com',
-      active:true
-    };
+    adm={id:1,name:'Store Admin',role:'Owner',branch:'All',onShift:true,hasPin:true,sales:0,txns:0,comm:0,last:new Date(),email:'admin@monarchpos.com',active:true};
     S.employees.unshift(adm);
-  }else{
-    adm.name=scrubPersonalName(adm.name)||'Store Admin';
-    adm.role='Owner';
-    if(!adm.pin)adm.pin='1234';
-    if(!adm.password)adm.password='admin123';
   }
   if(!S.branches||!S.branches.length){
     S.branches=[{id:'MAIN',name:'Main Flagship Mart',city:'Head Office',manager:'Store Admin',staff:1,rev:0,target:250000,orders:0,c:'#5b4cf0',share:1,status:'Open',trend:[0,0,0,0,0,0,0,0,0,0,0,0]}];
@@ -469,23 +468,81 @@ function ensureAdminAccount(){
     S.registers=[{id:'REG-01',branch:S.branches[0].id,name:'Main Counter 1',open:true,cashier:'Store Admin',float:15000,cash:0,cin:0,cout:0,card:0,digital:0,opened:new Date()}];
   }
 }
-function saveState(){
+
+function saveState(force=false){
   try{
     syncLiveStats();
     const snap={};
     PERSIST_KEYS.forEach(k=>snap[k]=S[k]);
-    localStorage.setItem('monarch_live_state_v2',JSON.stringify(snap));
-    fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)}).then(r=>r.ok?r.json():null).then(d=>{
+    // Never write temporary newPassword/newPin into browser localStorage
+    const cacheSnap=JSON.parse(JSON.stringify(snap));
+    (cacheSnap.employees||[]).forEach(e=>{delete e.newPassword;delete e.newPin;delete e.password;delete e.pin});
+    localStorage.setItem('monarch_live_state_v2',JSON.stringify(cacheSnap));
+    if(!S.user)return;
+    const payload={...snap,_rev:S._rev,_force:!!force};
+    // Clear one-time credential update fields from memory immediately after preparing payload
+    (S.employees||[]).forEach(e=>{delete e.newPassword;delete e.newPin});
+    apiFetch('/api/state',{method:'POST',body:JSON.stringify(payload)}).then(async r=>{
+      const d=await r.json().catch(()=>null);
+      if(r.status===409&&d&&d.conflict&&d.state){
+        S._rev=d.rev||S._rev;
+        const fresh=reviveDates(d.state);
+        PERSIST_KEYS.forEach(k=>{if(fresh[k]!==undefined)S[k]=fresh[k]});
+        ensureAdminAccount();syncLiveStats();
+        if(window.toast)toast('Synced newer changes from another register','info');
+        if(window.refresh)refresh();
+        return;
+      }
+      if(r.status===401){
+        S.user=null;setSessionToken('');
+        if(window.openAuthScreen)openAuthScreen(false);
+        return;
+      }
       if(d&&d.ok){
         window._cloudConnected=true;
-        S.cloudStatus=d.mongo?'MongoDB Atlas · Live Synced':'Local Server · Synced';
+        if(typeof d.rev==='number')S._rev=d.rev;
+        S.cloudStatus=d.mongo?'MongoDB Atlas · Live Synced':'Server API · Synced';
         const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
       }
     }).catch(()=>{});
   }catch(e){}
 }
+
+function syncCloudState(){
+  if(!S.user)return Promise.resolve();
+  return apiFetch('/api/state').then(async r=>{
+    if(r.status===401){
+      S.user=null;setSessionToken('');
+      if(window.openAuthScreen)openAuthScreen(false);
+      return;
+    }
+    const d=await r.json().catch(()=>null);
+    if(d&&d.ok){
+      window._cloudConnected=true;
+      if(typeof d.rev==='number')S._rev=d.rev;
+      S.cloudStatus=d.mongo?'MongoDB Atlas · Connected':'Server API · Connected';
+      const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
+      if(d.state&&Array.isArray(d.state.employees)&&d.state.employees.length>0){
+        const snap=reviveDates(d.state);
+        PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
+        ensureAdminAccount();
+        syncLiveStats();
+      }else{
+        saveState(true);
+      }
+      if(window.updateUserChip)updateUserChip();
+      if(window.updateBranchSelect)updateBranchSelect();
+      if(window.updateBell)updateBell();
+      if(window.refresh)refresh();
+    }
+  }).catch(()=>{
+    S.cloudStatus='Offline Mode · Local Persisted';
+    const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
+  });
+}
+
 function loadState(){
-  try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1')}catch(e){}
+  try{localStorage.removeItem('monarch_pos_state_v1');localStorage.removeItem('monarch_pos_user_v1');localStorage.removeItem('monarch_live_user_v2')}catch(e){}
   seedInitialData(false);
   try{
     const raw=localStorage.getItem('monarch_live_state_v2');
@@ -493,49 +550,21 @@ function loadState(){
       const snap=reviveDates(JSON.parse(raw));
       PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
     }
-    const u=localStorage.getItem('monarch_live_user_v2');
-    if(u)S.user=JSON.parse(u);
   }catch(e){}
   ensureAdminAccount();
-  // Auto-sign in Store Admin for smooth client testing if no user session yet
-  if(!S.user&&S.employees[0]){
-    const emp=S.employees[0];
-    S.user={id:emp.id,name:emp.name,role:emp.role,branch:emp.branch,email:emp.email,pin:emp.pin};
-  }
   syncLiveStats();
-
-  fetch('/api/state').then(r=>r.ok?r.json():null).then(d=>{
-    if(d&&d.ok){
-      window._cloudConnected=true;
-      S.cloudStatus=d.mongo?'MongoDB Atlas · Connected':'Server API · Connected';
-      const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
-      if(d.state&&Array.isArray(d.state.products)&&d.state.products.length>0){
-        const snap=reviveDates(d.state);
-        PERSIST_KEYS.forEach(k=>{if(snap[k]!==undefined)S[k]=snap[k]});
-        ensureAdminAccount();
-        syncLiveStats();
-        if(window.updateUserChip)updateUserChip();
-        if(window.updateBranchSelect)updateBranchSelect();
-        if(window.updateBell)updateBell();
-        if(window.refresh)refresh();
-      }else{
-        saveState();
-        if(window.updateUserChip)updateUserChip();
-        if(window.updateBranchSelect)updateBranchSelect();
-        if(window.updateBell)updateBell();
-        if(window.refresh)refresh();
-      }
-    }
-  }).catch(()=>{
-    S.cloudStatus='Offline Mode · Local Persisted';
-    const pill=$('#sync-pill');if(pill)pill.textContent=S.cloudStatus;
-  });
 }
+
 function resetDemoState(emptyOnly=false){
+  if(!isAdmin())return toast('Only Store Admin (Owner) can reset or wipe the database','err');
   localStorage.removeItem('monarch_live_state_v2');
   seedInitialData(emptyOnly);
   syncLiveStats();
-  saveState();
+  if(emptyOnly){
+    apiFetch('/api/state',{method:'DELETE'}).then(()=>saveState(true)).catch(()=>saveState(true));
+  }else{
+    saveState(true);
+  }
   if(window.updateUserChip)updateUserChip();
   if(window.updateBranchSelect)updateBranchSelect();
   if(window.updateBell)updateBell();
