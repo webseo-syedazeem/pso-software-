@@ -281,9 +281,9 @@ function createAllPO(){
   toast(`${Object.keys(by).length} draft purchase order(s) created`);
   S.pur='orders';go('purchasing');
 }
-let _aiT=null,_ovT1=null,_ovT2=null;
+let _aiT=null,_ovT1=null,_ovT2=null,_ovT3=null;
 function typeBrief(){
-  if(_aiT)clearInterval(_aiT);
+  if(_aiT)clearTimeout(_aiT);
   const el=$('#ai-brief');if(!el)return;
   const h=new Date().getHours();
   const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
@@ -293,44 +293,93 @@ function typeBrief(){
   el.textContent='';
   el.classList.add('typing');
   let i=0;
-  _aiT=setInterval(()=>{if(!document.body.contains(el))return clearInterval(_aiT);el.textContent=txt.slice(0,++i);if(i>=txt.length){clearInterval(_aiT);setTimeout(()=>el.classList.remove('typing'),1500)}},16);
+  function step(){
+    if(!document.body.contains(el))return;
+    el.textContent=txt.slice(0,++i);
+    if(i<txt.length){
+      _aiT=setTimeout(step,42);
+    }
+  }
+  _aiT=setTimeout(step,180);
 }
 function typeOverview(){
-  if(_ovT1)clearInterval(_ovT1);
-  if(_ovT2)clearInterval(_ovT2);
+  if(_ovT1)clearTimeout(_ovT1);
+  if(_ovT2)clearTimeout(_ovT2);
+  if(_ovT3)clearTimeout(_ovT3);
   const gEl=$('#ov-greet');
+  const bEl=$('#ov-brief');
   const pEl=$('#ov-pulse');
   const h=new Date().getHours();
   const greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
-  const name=(S.user?S.user.name:'Faizan Rizwan').split(' ')[0];
-  const gTxt=`${greet}, ${name}`;
+  const fullName=S.user?S.user.name:'Faizan Rizwan';
+  const firstName=fullName.split(' ')[0];
+  const phrases=[
+    `${greet}, ${firstName}`,
+    `Welcome back, ${fullName}`,
+    `${greet}, ${firstName} · Live POS`
+  ];
+  const brLabel=S.branch==='All branches'?S.branches.length+' branch'+(S.branches.length===1?'':'es'):S.branch;
+  const bTxt=`Live operational dashboard across ${brLabel} · ${S.cloudStatus}`;
   const todayOrds=sessionToday();
   const pTxt=`✦ ${todayOrds.length} sale${todayOrds.length===1?'':'s'} recorded today · ${S.products.length} products & ${S.customers.length} customers live on ${S.cloudStatus}`;
+
   if(gEl){
     gEl.textContent='';
     gEl.classList.add('typing');
-    let i=0;
-    _ovT1=setInterval(()=>{
-      if(!document.body.contains(gEl))return clearInterval(_ovT1);
-      gEl.textContent=gTxt.slice(0,++i);
-      if(i>=gTxt.length){
-        clearInterval(_ovT1);
-        setTimeout(()=>gEl.classList.remove('typing'),600);
+    let pIdx=0,cIdx=0,deleting=false;
+    function tickGreet(){
+      if(!document.body.contains(gEl))return;
+      const cur=phrases[pIdx%phrases.length];
+      if(!deleting){
+        cIdx++;
+        gEl.textContent=cur.slice(0,cIdx);
+        if(cIdx>=cur.length){
+          deleting=true;
+          _ovT1=setTimeout(tickGreet,3400);
+        }else{
+          _ovT1=setTimeout(tickGreet,105);
+        }
+      }else{
+        cIdx--;
+        gEl.textContent=cur.slice(0,cIdx);
+        if(cIdx<=0){
+          deleting=false;
+          pIdx++;
+          _ovT1=setTimeout(tickGreet,420);
+        }else{
+          _ovT1=setTimeout(tickGreet,48);
+        }
       }
-    },26);
+    }
+    _ovT1=setTimeout(tickGreet,220);
+  }
+  if(bEl){
+    bEl.textContent='';
+    bEl.classList.add('typing');
+    let k=0;
+    function tickBrief(){
+      if(!document.body.contains(bEl))return;
+      bEl.textContent=bTxt.slice(0,++k);
+      if(k<bTxt.length){
+        _ovT3=setTimeout(tickBrief,45);
+      }else{
+        setTimeout(()=>bEl.classList.remove('typing'),900);
+      }
+    }
+    _ovT3=setTimeout(tickBrief,300);
   }
   if(pEl){
     pEl.textContent='';
     pEl.classList.add('typing');
     let j=0;
-    _ovT2=setInterval(()=>{
-      if(!document.body.contains(pEl))return clearInterval(_ovT2);
+    function tickPulse(){
+      if(!document.body.contains(pEl))return;
       pEl.textContent=pTxt.slice(0,++j);
-      if(j>=pTxt.length){
-        clearInterval(_ovT2);
-        setTimeout(()=>pEl.classList.remove('typing'),1500);
+      if(j<pTxt.length){
+        _ovT2=setTimeout(tickPulse,42);
       }
-    },15);
+    }
+    _ovT2=setTimeout(tickPulse,350);
   }
 }
 
@@ -552,6 +601,6 @@ const _refresh=refresh;refresh=function(){
   try{first=location.hash.slice(1)}catch(e){}
   render(PAGES[first]?first:'overview');
   if(!S.user)openAuthScreen(false);
-  setTimeout(()=>{$('#splash').classList.add('out');countUps($('#view'))},1150);
+  setTimeout(()=>{$('#splash').classList.add('out');countUps($('#view'));if(S.page==='overview')typeOverview();if(S.page==='ai')typeBrief()},1150);
   setTimeout(()=>$('#splash')?.remove(),1900);
 })();
