@@ -97,11 +97,16 @@ svg.i{flex-shrink:0;display:inline-block;vertical-align:-3px}
 .plan small{font-size:11px;color:#8a90b2}
 .plan .meter{height:5px;background:#ffffff12;border-radius:9px;margin:12px 0 4px;overflow:hidden}
 .plan .meter i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#8b7ffa,#d5fd79);border-radius:9px;animation:growX 1.4s .4s var(--ease) both;transform-origin:left}
-body.collapsed{--sw:84px}
-body.collapsed .brand-t,body.collapsed .nav-t,body.collapsed .nav-b,body.collapsed .nav-g,body.collapsed .plan{opacity:0;pointer-events:none}
-body.collapsed .nav-g{height:8px;margin:10px 0}
-body.collapsed .nav-i{justify-content:center;padding:11px}
-body.collapsed .side-foot{display:none}
+@media(min-width:1025px){
+  body.collapsed{--sw:84px}
+  body.collapsed .brand{justify-content:center;padding:0}
+  body.collapsed .brand-t,body.collapsed .nav-t,body.collapsed .nav-b,body.collapsed .side-foot{display:none!important}
+  body.collapsed .nav{padding:6px 12px 18px}
+  body.collapsed .nav-g{font-size:0;height:1px;background:rgba(255,255,255,.09);margin:14px 10px;padding:0;overflow:hidden}
+  body.collapsed .nav-i{justify-content:center;gap:0;width:48px;height:46px;padding:0;margin:4px auto;border-radius:13px}
+  body.collapsed .nav-i.active::before{left:-18px;top:10px;bottom:10px}
+  body.collapsed .nav-i svg{margin:0}
+}
 
 /* ---------- TOPBAR ---------- */
 .main{margin-left:var(--sw);min-width:0;transition:margin .35s var(--ease)}
